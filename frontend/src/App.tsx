@@ -1,18 +1,12 @@
-import { useState } from 'react'
-import './App.css'
+import { Routes, Route } from 'react-router-dom'
+import LoginPage from './pages/LoginPage'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div>
-          <h1>Custom Contact Center</h1>
-        </div>
-       
-      </section>
-    </>
+    <Routes>
+      <Route path="/" element={<LoginPage />} />
+      <Route path="/login" element={<LoginPage />} />
+    </Routes>
   )
 }
 

@@ -85,12 +85,13 @@ This is an **end-to-end MVP** for a custom contact center platform that enables 
 project-aws-custom-contact-center/
 ├── frontend/                          # React TS app
 │   ├── src/
-│   │   ├── /                 
-│   │   ├── /            
-│   │   ├── /         
-│   │   ├── /           
-│   │   ├── /                  
-│   │   ├── /                
+│   │   ├── /assets
+│   │   ├── /components
+│   │   ├── /pages
+│   │   ├── /services
+│   │   ├── /store
+│   │   ├── /types
+│   │   ├── /utils
 │   │   └── main.tsx               
 │   ├── package.json
 │   ├── tailwind.config.js
