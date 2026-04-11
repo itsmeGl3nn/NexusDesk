@@ -11,7 +11,7 @@ Globals:
       Variables:
         TABLE_NAME: ContactCenter
         AWS_ENDPOINT: http://host.docker.internal:4566
-        
+
 Resources:
 
   PingFunction:
@@ -19,8 +19,7 @@ Resources:
     Properties:
       FunctionName: PingFunction
       CodeUri: ../backend
-      Handler: src/handlers/ping.handler
-      Runtime: nodejs18.x
+      Handler: dist/handlers/ping.handler   # ✅ compiled JS output
       Architectures:
         - x86_64
       Events:
@@ -29,21 +28,6 @@ Resources:
           Properties:
             Path: /ping
             Method: get
-
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        UseNpmCi: true
-        BuildMethod: esbuild
-        EntryPoints:
-          - src/handlers/ping.ts
-        Bundle: true
-        Minify: false
-        Sourcemap: true
-        Target: es2020
-        Platform: node
-        Format: cjs
-        LogLevel: debug
 
 Outputs:
 
