@@ -1,76 +1,36 @@
-# LocalStack Development Configuration
-version: '3.8'
-
 services:
   localstack:
     image: localstack/localstack:latest
     container_name: localstack-contact-center
     ports:
-      # Main endpoint
       - "4566:4566"
-      # Java debugging (optional)
-      - "4571:4571"
     environment:
       - DEBUG=1
-      - DATA_DIR=/tmp/localstack/data
-      - LAMBDA_EXECUTOR=docker
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - AWS_ACCESS_KEY_ID=localstack
-      - AWS_SECRET_ACCESS_KEY=localstack
       - AWS_DEFAULT_REGION=us-east-1
-      # Services to enable
-      - SERVICES=dynamodb,sqs,sns,s3,lambda,cognito-idp,cloudformation,iam,logs
-    volumes:
-      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
-      - "/var/run/docker.sock:/var/run/docker.sock"
-      - "./localstack/init-aws.sh:/docker-entrypoint-initaws.d/init-aws.sh"
-    networks:
-      - contact-center-network
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: contact-center-backend
-    ports:
-      - "3001:3001"
-    depends_on:
-      - localstack
-    environment:
-      - NODE_ENV=development
-      - LOCALSTACK_ENDPOINT=http://localstack:4566
-      - AWS_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=localstack
       - AWS_SECRET_ACCESS_KEY=localstack
+      - SERVICES=dynamodb,lambda,apigateway,iam,logs
     volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
     networks:
       - contact-center-network
-    command: npm run dev
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
     container_name: contact-center-frontend
     ports:
       - "5173:5173"
-    depends_on:
-      - backend
     environment:
-      - VITE_API_URL=http://backend:3001/api
-      - VITE_AWS_ENDPOINT=http://localstack:4566
+      - VITE_API_URL=http://localhost:3000
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    command: npm run dev
     networks:
       - contact-center-network
-    command: npm run dev
 
 networks:
   contact-center-network:
     driver: bridge
-
-volumes:
-  localstack-data:
