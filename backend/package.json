@@ -1,0 +1,25 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node src/handlers/ping.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1027.0",
+    "@aws-sdk/lib-dynamodb": "^3.1027.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^25.5.2",
+    "esbuild": "^0.28.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  }
+}
