@@ -19,7 +19,7 @@ Resources:
     Properties:
       FunctionName: PingFunction
       CodeUri: ../backend
-      Handler: dist/handlers/ping.handler
+      Handler: dist/handlers/ping.handler   # ✅ compiled JS output
       Architectures:
         - x86_64
       Events:
@@ -30,6 +30,7 @@ Resources:
             Method: get
 
 Outputs:
+
   ApiEndpoint:
-    Description: LocalStack API Gateway endpoint
-    Value: http://localhost:4566
+    Description: API Gateway endpoint URL
+    Value: !Sub "http://localhost:3000"
