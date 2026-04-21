@@ -2,7 +2,7 @@
 description: "Use when working on Docker, docker-compose, LocalStack, container builds, local AWS emulation, Dockerfile optimization, multi-stage builds, dev container orchestration, or the localstack/ init scripts. Handles container networking, volume mounts, and aligning LocalStack services with AWS resources."
 name: "AWS Docker & LocalStack Specialist"
 tools: [read, edit, search, execute, todo]
-model: "Claude Sonnet 4.5"
+model: "Claude Sonnet 4.6"
 argument-hint: "Describe the container, compose, or LocalStack change"
 ---
 

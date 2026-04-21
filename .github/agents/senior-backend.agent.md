@@ -2,7 +2,7 @@
 description: "Use when working on Node.js/TypeScript Lambda handlers, API design, business logic, DynamoDB/data modeling, authentication (Cognito/JWT), AWS SDK usage, esbuild bundling, or anything under backend/. Handles new endpoints, Lambda functions, integrations with Amazon Connect, and backend bug fixes."
 name: "Senior Backend Engineer"
 tools: [read, edit, search, execute, todo]
-model: "Claude Sonnet 4.5"
+model: "Claude Sonnet 4.6"
 argument-hint: "Describe the backend feature, endpoint, or bug"
 ---
 

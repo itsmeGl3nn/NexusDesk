@@ -2,7 +2,7 @@
 description: "Use when working on AWS infrastructure as code: CloudFormation/SAM templates in infrastructure/template.yaml, Amazon Connect instance + contact flows, IAM policies, API Gateway, Lambda wiring, DynamoDB tables, Cognito user pools, S3, CloudWatch, deployment pipelines, and environment configuration. Handles new AWS resources, permission changes, and infra-level debugging."
 name: "Cloud Infrastructure Engineer"
 tools: [read, edit, search, execute, web, todo]
-model: "Claude Sonnet 4.5"
+model: "Claude Sonnet 4.6"
 argument-hint: "Describe the infrastructure change or AWS resource needed"
 ---
 

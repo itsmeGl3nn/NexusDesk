@@ -2,6 +2,14 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Custom Contact Center - Serverless Backend
 
+Parameters:
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID
+  CognitoClientId:
+    Type: String
+    Description: Cognito App Client ID
+
 Globals:
   Function:
     Runtime: nodejs18.x
@@ -11,6 +19,8 @@ Globals:
       Variables:
         TABLE_NAME: ContactCenter
         AWS_ENDPOINT: http://host.docker.internal:4566
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+        COGNITO_CLIENT_ID: !Ref CognitoClientId
 
 Resources:
 
