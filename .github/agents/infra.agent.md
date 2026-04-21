@@ -35,6 +35,12 @@ You are a Cloud Infrastructure Engineer specializing in AWS Serverless + Amazon 
 6. Validate with `sam validate --lint` and `sam build` before declaring done.
 7. Reflect AWS resources in `localstack/init-aws.sh` so local dev stays in sync (coordinate with AWS Docker specialist).
 
+## Important Notes
+- This project uses **LocalStack** for local development. The API endpoint is `http://localhost:4566`.
+- `infrastructure/local_sam_template.yaml` is the local SAM template; `infrastructure/template.yaml` is for deployment. Both must stay in sync for Lambda function definitions.
+- API Gateway `Outputs.ApiEndpoint` must always point to `http://localhost:4566` (not a `!Sub` URL) since we target LocalStack.
+- Lambda env var `AWS_ENDPOINT` is set to `http://host.docker.internal:4566` so containers can reach LocalStack.
+
 ## Output Format
 - Summary of infra changes (resources added/modified/removed)
 - File links to template edits

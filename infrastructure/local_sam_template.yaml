@@ -1,14 +1,16 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Custom Contact Center - Serverless Backend
+Description: Custom Contact Center - Serverless Backend (Local)
 
 Parameters:
   CognitoUserPoolId:
     Type: String
-    Description: Cognito User Pool ID
+    Description: Cognito User Pool ID (use a placeholder for local dev)
+    Default: local-user-pool-id
   CognitoClientId:
     Type: String
-    Description: Cognito App Client ID
+    Description: Cognito App Client ID (use a placeholder for local dev)
+    Default: local-client-id
 
 Globals:
   Function:
@@ -29,7 +31,7 @@ Resources:
     Properties:
       FunctionName: PingFunction
       CodeUri: ../backend
-      Handler: dist/handlers/ping.handler   # ✅ compiled JS output
+      Handler: dist/handlers/ping.handler
       Architectures:
         - x86_64
       Events:
@@ -39,8 +41,82 @@ Resources:
             Path: /ping
             Method: get
 
-Outputs:
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: CreateUserFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.createUser
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: post
 
+  ListUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ListUsersFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.listUsers
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: get
+
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GetUserFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.getUser
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users/{userId}
+            Method: get
+
+  UpdateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: UpdateUserFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.updateUser
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users/{userId}
+            Method: patch
+
+  GetMeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GetMeFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.getMe
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /me
+            Method: get
+
+Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
     Value: !Sub "http://localhost:3000"

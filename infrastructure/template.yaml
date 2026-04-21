@@ -2,14 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Custom Contact Center - Serverless Backend
 
-Parameters:
-  CognitoUserPoolId:
-    Type: String
-    Description: Cognito User Pool ID
-  CognitoClientId:
-    Type: String
-    Description: Cognito App Client ID
-
 Globals:
   Function:
     Runtime: nodejs18.x
@@ -17,13 +9,120 @@ Globals:
     MemorySize: 128
     Environment:
       Variables:
-        TABLE_NAME: ContactCenter
-        AWS_ENDPOINT: http://host.docker.internal:4566
-        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
-        COGNITO_CLIENT_ID: !Ref CognitoClientId
+        TABLE_NAME: !Ref ContactCenterTable
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+        COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
 
 Resources:
 
+  # ============================================================
+  # DynamoDB
+  # ============================================================
+  ContactCenterTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ContactCenter
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # ============================================================
+  # Cognito User Pool
+  # ============================================================
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: ContactCenterUserPool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+        - Name: tenantId
+          AttributeDataType: String
+          Mutable: true
+          StringAttributeConstraints:
+            MinLength: "1"
+            MaxLength: "256"
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: ContactCenterClient
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  CognitoAdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admin
+      UserPoolId: !Ref CognitoUserPool
+      Description: Full access — manage users, settings, and all resources
+      Precedence: 1
+
+  CognitoSupervisorGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: supervisor
+      UserPoolId: !Ref CognitoUserPool
+      Description: Can view users, manage agents, and view reports
+      Precedence: 2
+
+  CognitoAgentGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: agent
+      UserPoolId: !Ref CognitoUserPool
+      Description: Basic agent access — handle contacts
+      Precedence: 3
+
+  # ============================================================
+  # IAM — shared policy for Lambda → DynamoDB
+  # ============================================================
+  DynamoDBCrudPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: ContactCenterDynamoDBCrud
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+            Resource:
+              - !GetAtt ContactCenterTable.Arn
+
+  # ============================================================
+  # Lambda Functions
+  # ============================================================
   PingFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -39,7 +138,101 @@ Resources:
             Path: /ping
             Method: get
 
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: CreateUserFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.createUser
+      Architectures:
+        - x86_64
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: post
+
+  ListUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ListUsersFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.listUsers
+      Architectures:
+        - x86_64
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: get
+
+  GetUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GetUserFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.getUser
+      Architectures:
+        - x86_64
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users/{userId}
+            Method: get
+
+  UpdateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: UpdateUserFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.updateUser
+      Architectures:
+        - x86_64
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users/{userId}
+            Method: patch
+
+  GetMeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GetMeFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/user.handler.getMe
+      Architectures:
+        - x86_64
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /me
+            Method: get
+
 Outputs:
   ApiEndpoint:
     Description: LocalStack API Gateway endpoint
     Value: http://localhost:4566
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+  CognitoUserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref CognitoUserPoolClient
+  ContactCenterTableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt ContactCenterTable.Arn
