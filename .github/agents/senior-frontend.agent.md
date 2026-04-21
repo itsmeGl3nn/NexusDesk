@@ -2,7 +2,7 @@
 description: "Use when working on React/TypeScript UI, Vite, Tailwind, component architecture, state management (Zustand/Redux), routing, forms, accessibility, frontend performance, or anything under frontend/. Handles UI bugs, refactors, new pages/components, styling, and client-side integrations with the backend/AWS Connect APIs."
 name: "Senior Frontend Engineer"
 tools: [read, edit, search, execute, todo]
-model: "Claude Sonnet 4.6"
+model: "Claude Opus 4.6"
 argument-hint: "Describe the UI feature, bug, or refactor"
 ---
 
