@@ -13,7 +13,7 @@ services:
       - SERVICES=dynamodb,lambda,apigateway,iam,logs,sqs,sns,events,ses,cloudwatch,sts,s3,cloudformation,cloudwatch,cognito-idp
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "./localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
+      - "./localstack:/etc/localstack/init/ready.d"
     networks:
       - contact-center-network
 
