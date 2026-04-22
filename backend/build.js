@@ -2,8 +2,8 @@ const esbuild = require('esbuild');
 
 esbuild.build({
   entryPoints: [
-    'src/handlers/ping.ts',
     'src/module/user/user.handler.ts',
+    'src/module/auth/auth.handler.ts',
   ],
   bundle: true,
   platform: 'node',

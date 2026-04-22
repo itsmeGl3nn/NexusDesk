@@ -116,6 +116,69 @@ Resources:
             Path: /me
             Method: get
 
+  # ============================================================
+  # Auth Lambda Functions (public)
+  # ============================================================
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LoginFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/auth.handler.login
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth/login
+            Method: post
+
+  SignupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SignupFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/auth.handler.signup
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth/signup
+            Method: post
+
+  ConfirmSignupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ConfirmSignupFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/auth.handler.confirmSignup
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth/confirm
+            Method: post
+
+  RefreshTokenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: RefreshTokenFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/auth.handler.refresh
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth/refresh
+            Method: post
+
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL
