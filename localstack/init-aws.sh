@@ -19,11 +19,15 @@ done
 echo "✓ LocalStack is ready"
 
 # ============================================================
+# DynamoDB Tables
+# ============================================================
+echo "Creating DynamoDB tables..."
+
 # DynamoDB
 # ============================================================
 echo "Creating DynamoDB table..."
 $AWS dynamodb create-table \
-  --table-name ContactCenter \
+  --table-name Users \
   --attribute-definitions \
     AttributeName=PK,AttributeType=S \
     AttributeName=SK,AttributeType=S \
@@ -31,7 +35,55 @@ $AWS dynamodb create-table \
     AttributeName=PK,KeyType=HASH \
     AttributeName=SK,KeyType=RANGE \
   --billing-mode PAY_PER_REQUEST \
-  2>/dev/null || echo "Table already exists"
+  2>/dev/null || echo "Users table already exists"
+
+# Tickets Table
+$AWS dynamodb create-table \
+  --table-name Tickets \
+  --attribute-definitions \
+    AttributeName=PK,AttributeType=S \
+    AttributeName=SK,AttributeType=S \
+  --key-schema \
+    AttributeName=PK,KeyType=HASH \
+    AttributeName=SK,KeyType=RANGE \
+  --billing-mode PAY_PER_REQUEST \
+  2>/dev/null || echo "Tickets table already exists"
+
+# Calls Table
+$AWS dynamodb create-table \
+  --table-name Calls \
+  --attribute-definitions \
+    AttributeName=PK,AttributeType=S \
+    AttributeName=SK,AttributeType=S \
+  --key-schema \
+    AttributeName=PK,KeyType=HASH \
+    AttributeName=SK,KeyType=RANGE \
+  --billing-mode PAY_PER_REQUEST \
+  2>/dev/null || echo "Calls table already exists"
+
+# Logs Table
+$AWS dynamodb create-table \
+  --table-name Logs \
+  --attribute-definitions \
+    AttributeName=PK,AttributeType=S \
+    AttributeName=SK,AttributeType=S \
+  --key-schema \
+    AttributeName=PK,KeyType=HASH \
+    AttributeName=SK,KeyType=RANGE \
+  --billing-mode PAY_PER_REQUEST \
+  2>/dev/null || echo "Logs table already exists"
+
+# Tenants Table
+$AWS dynamodb create-table \
+  --table-name Tenants \
+  --attribute-definitions \
+    AttributeName=PK,AttributeType=S \
+    AttributeName=SK,AttributeType=S \
+  --key-schema \
+    AttributeName=PK,KeyType=HASH \
+    AttributeName=SK,KeyType=RANGE \
+  --billing-mode PAY_PER_REQUEST \
+  2>/dev/null || echo "Tenants table already exists"
 
 # ============================================================
 # Cognito User Pool
@@ -130,7 +182,7 @@ create_seed_user() {
   if [ -n "$user_sub" ] && [ "$user_sub" != "None" ]; then
     echo "  Sub: $user_sub — seeding DynamoDB..."
     $AWS dynamodb put-item \
-      --table-name ContactCenter \
+      --table-name Users \
       --item "{
         \"PK\": {\"S\": \"TENANT#$TENANT_ID\"},
         \"SK\": {\"S\": \"USER#$user_sub\"},
