@@ -365,15 +365,15 @@ Outputs:
   UsersTableArn:
     Description: Users DynamoDB table ARN
     Value: !GetAtt UsersTable.Arn
-  TicketsTableArn:
-    Description: Tickets DynamoDB table ARN
-    Value: !GetAtt TicketsTable.Arn
-  CallsTableArn:
-    Description: Calls DynamoDB table ARN
-    Value: !GetAtt CallsTable.Arn
-  LogsTableArn:
-    Description: Logs DynamoDB table ARN
-    Value: !GetAtt LogsTable.Arn
-  TenantsTableArn:
-    Description: Tenants DynamoDB table ARN
-    Value: !GetAtt TenantsTable.Arn
+  # TicketsTableArn:
+  #   Description: Tickets DynamoDB table ARN
+  #   Value: !GetAtt TicketsTable.Arn
+  # CallsTableArn:
+  #   Description: Calls DynamoDB table ARN
+  #   Value: !GetAtt CallsTable.Arn
+  # LogsTableArn:
+  #   Description: Logs DynamoDB table ARN
+  #   Value: !GetAtt LogsTable.Arn
+  # TenantsTableArn:
+  #   Description: Tenants DynamoDB table ARN
+  #   Value: !GetAtt TenantsTable.Arn
