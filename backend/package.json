@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "node build.js",
+    "typecheck": "tsc --noEmit",
     "start": "ts-node src/handlers/ping.ts"
   },
   "keywords": [],
