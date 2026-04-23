@@ -1,9 +1,9 @@
 ##############################################################################
-# deploy.ps1 — Build Lambda handlers and deploy to LocalStack or AWS
+# deploy.ps1 - Build Lambda handlers and deploy to LocalStack or AWS
 #
 # Usage (PowerShell):
 #   .\deploy.ps1 -Local                  # deploy stack into LocalStack (4566)
-#   .\deploy.ps1                         # first AWS deploy — opens guided prompts
+#   .\deploy.ps1                         # first AWS deploy - opens guided prompts
 #   .\deploy.ps1 -SkipGuided             # subsequent AWS deploys (uses samconfig.toml)
 #   .\deploy.ps1 -StackName my-stack     # override stack name
 #   .\deploy.ps1 -DryRun                 # build only, skip deploy
@@ -25,28 +25,28 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 function Step([string]$msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
-function Ok([string]$msg)   { Write-Host "    ✓ $msg"  -ForegroundColor Green }
-function Fail([string]$msg) { Write-Host "    ✗ $msg"  -ForegroundColor Red; exit 1 }
+function Ok([string]$msg)   { Write-Host "    [OK] $msg"  -ForegroundColor Green }
+function Fail([string]$msg) { Write-Host "    [FAIL] $msg"  -ForegroundColor Red; exit 1 }
 
-# ── 1. Install backend dependencies ──────────────────────────────────────────
+# --- 1. Install backend dependencies ---
 Step "Installing backend dependencies"
 Push-Location backend
 npm ci --silent
 if ($LASTEXITCODE -ne 0) { Fail "npm ci failed" }
 Ok "node_modules ready"
 
-# ── 2. Build Lambda handlers with esbuild ────────────────────────────────────
+# --- 2. Build Lambda handlers with esbuild ---
 Step "Building Lambda handlers (esbuild)"
 node build.js
 if ($LASTEXITCODE -ne 0) { Fail "esbuild failed" }
 Pop-Location
 
 if ($DryRun) {
-    Ok "DryRun flag set — skipping deploy"
+    Ok "DryRun flag set - skipping deploy"
     exit 0
 }
 
-# ── LOCAL mode: deploy SAM stack into LocalStack via samlocal ────────────────
+# --- LOCAL mode: deploy SAM stack into LocalStack via samlocal ---
 if ($Local) {
     Step "Starting LocalStack (docker-compose)"
     docker-compose up -d
@@ -67,7 +67,7 @@ if ($Local) {
     # Verify samlocal is installed (wraps SAM CLI to point at LocalStack)
     $samlocal = Get-Command samlocal -ErrorAction SilentlyContinue
     if (-not $samlocal) {
-        Write-Host "    samlocal not found — installing aws-sam-cli-local via pip" -ForegroundColor Yellow
+        Write-Host "    samlocal not found - installing aws-sam-cli-local via pip" -ForegroundColor Yellow
         pip install --quiet aws-sam-cli-local
         if ($LASTEXITCODE -ne 0) { Fail "Failed to install aws-sam-cli-local (need Python + pip)" }
     }
@@ -76,7 +76,7 @@ if ($Local) {
     samlocal build --template infrastructure/template.yaml
     if ($LASTEXITCODE -ne 0) { Fail "samlocal build failed" }
 
-    Step "samlocal deploy → LocalStack (creates Lambda zips + API Gateway)"
+    Step "samlocal deploy -> LocalStack (creates Lambda zips + API Gateway)"
     samlocal deploy `
         --stack-name $StackName `
         --resolve-s3 `
@@ -98,11 +98,11 @@ if ($Local) {
         Write-Host "    Example:    curl http://localhost:4566/restapis/$apiId/Prod/_user_request_/ping" -ForegroundColor Gray
     }
 
-    Ok "Done — stack '$StackName' deployed to LocalStack"
+    Ok "Done - stack '$StackName' deployed to LocalStack"
     exit 0
 }
 
-# ── AWS DEPLOY mode ───────────────────────────────────────────────────────────
+# --- AWS DEPLOY mode ---
 
 $samArgs = @(
     "deploy",
@@ -114,14 +114,14 @@ $samArgs = @(
 )
 
 if (-not $SkipGuided -and -not (Test-Path "samconfig.toml")) {
-    Write-Host "    No samconfig.toml found — running guided deploy (answers are saved for next time)" -ForegroundColor Yellow
+    Write-Host "    No samconfig.toml found - running guided deploy (answers are saved for next time)" -ForegroundColor Yellow
     $samArgs += "--guided"
 }
 
 sam @samArgs
 if ($LASTEXITCODE -ne 0) { Fail "SAM deploy failed" }
 
-# ── 4. Print stack outputs ────────────────────────────────────────────────────
+# --- 4. Print stack outputs ---
 Step "Stack outputs"
 aws cloudformation describe-stacks `
     --stack-name $StackName `
@@ -129,4 +129,4 @@ aws cloudformation describe-stacks `
     --query "Stacks[0].Outputs" `
     --output table
 
-Ok "Done — stack '$StackName' deployed"
+Ok "Done - stack '$StackName' deployed"
