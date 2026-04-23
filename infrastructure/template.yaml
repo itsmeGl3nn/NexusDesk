@@ -209,7 +209,7 @@ Resources:
     Properties:
       FunctionName: CreateUserFunction
       CodeUri: ../backend/dist/handlers
-      Handler: user.handler.createUser
+      Handler: user.createUser
       Architectures:
         - x86_64
       Policies:
@@ -226,7 +226,7 @@ Resources:
     Properties:
       FunctionName: ListUsersFunction
       CodeUri: ../backend/dist/handlers
-      Handler: user.handler.listUsers
+      Handler: user.listUsers
       Architectures:
         - x86_64
       Policies:
@@ -243,7 +243,7 @@ Resources:
     Properties:
       FunctionName: GetUserFunction
       CodeUri: ../backend/dist/handlers
-      Handler: user.handler.getUser
+      Handler: user.getUser
       Architectures:
         - x86_64
       Policies:
@@ -260,7 +260,7 @@ Resources:
     Properties:
       FunctionName: UpdateUserFunction
       CodeUri: ../backend/dist/handlers
-      Handler: user.handler.updateUser
+      Handler: user.updateUser
       Architectures:
         - x86_64
       Policies:
@@ -277,7 +277,7 @@ Resources:
     Properties:
       FunctionName: GetMeFunction
       CodeUri: ../backend/dist/handlers
-      Handler: user.handler.getMe
+      Handler: user.getMe
       Architectures:
         - x86_64
       Policies:
@@ -297,7 +297,7 @@ Resources:
     Properties:
       FunctionName: LoginFunction
       CodeUri: ../backend/dist/handlers
-      Handler: auth.handler.login
+      Handler: auth.login
       Architectures:
         - x86_64
       Events:
@@ -312,7 +312,7 @@ Resources:
     Properties:
       FunctionName: SignupFunction
       CodeUri: ../backend/dist/handlers
-      Handler: auth.handler.signup
+      Handler: auth.signup
       Architectures:
         - x86_64
       Events:
@@ -327,7 +327,7 @@ Resources:
     Properties:
       FunctionName: ConfirmSignupFunction
       CodeUri: ../backend/dist/handlers
-      Handler: auth.handler.confirmSignup
+      Handler: auth.confirmSignup
       Architectures:
         - x86_64
       Events:
@@ -342,7 +342,7 @@ Resources:
     Properties:
       FunctionName: RefreshTokenFunction
       CodeUri: ../backend/dist/handlers
-      Handler: auth.handler.refresh
+      Handler: auth.refresh
       Architectures:
         - x86_64
       Events:

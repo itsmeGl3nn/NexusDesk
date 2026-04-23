@@ -16,12 +16,14 @@ function findHandlers(dir) {
   return results;
 }
 
-// Build { 'user.handler': 'src/module/user/user.handler.ts', ... }
-// so esbuild outputs flat: dist/handlers/user.handler.js
-// This matches the SAM template Handler paths (dist/handlers/<name>.<export>).
+// Build { 'user': 'src/module/user/user.handler.ts', ... }
+// so esbuild outputs flat: dist/handlers/user.js
+// Lambda handler strings become "<module>.<export>" (single dot) which
+// the Node runtime parses correctly (e.g. "user.listUsers").
 const entryPoints = {};
 for (const filePath of findHandlers('src/module')) {
-  const name = path.basename(filePath, '.ts'); // e.g. "user.handler"
+  // Strip ".handler" suffix so "user.handler.ts" -> output key "user"
+  const name = path.basename(filePath, '.ts').replace(/\.handler$/, '');
   entryPoints[name] = filePath;
 }
 
