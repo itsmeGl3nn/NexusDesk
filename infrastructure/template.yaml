@@ -204,27 +204,12 @@ Resources:
   # ============================================================
   # Lambda Functions
   # ============================================================
-  PingFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: PingFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/ping.handler
-      Architectures:
-        - x86_64
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /ping
-            Method: get
-
   CreateUserFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: CreateUserFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/user.handler.createUser
+      CodeUri: ../backend/dist/handlers
+      Handler: user.handler.createUser
       Architectures:
         - x86_64
       Policies:
@@ -240,8 +225,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: ListUsersFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/user.handler.listUsers
+      CodeUri: ../backend/dist/handlers
+      Handler: user.handler.listUsers
       Architectures:
         - x86_64
       Policies:
@@ -257,8 +242,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: GetUserFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/user.handler.getUser
+      CodeUri: ../backend/dist/handlers
+      Handler: user.handler.getUser
       Architectures:
         - x86_64
       Policies:
@@ -274,8 +259,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: UpdateUserFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/user.handler.updateUser
+      CodeUri: ../backend/dist/handlers
+      Handler: user.handler.updateUser
       Architectures:
         - x86_64
       Policies:
@@ -291,8 +276,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: GetMeFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/user.handler.getMe
+      CodeUri: ../backend/dist/handlers
+      Handler: user.handler.getMe
       Architectures:
         - x86_64
       Policies:
@@ -311,8 +296,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: LoginFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/auth.handler.login
+      CodeUri: ../backend/dist/handlers
+      Handler: auth.handler.login
       Architectures:
         - x86_64
       Events:
@@ -326,8 +311,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: SignupFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/auth.handler.signup
+      CodeUri: ../backend/dist/handlers
+      Handler: auth.handler.signup
       Architectures:
         - x86_64
       Events:
@@ -341,8 +326,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: ConfirmSignupFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/auth.handler.confirmSignup
+      CodeUri: ../backend/dist/handlers
+      Handler: auth.handler.confirmSignup
       Architectures:
         - x86_64
       Events:
@@ -356,8 +341,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: RefreshTokenFunction
-      CodeUri: ../backend
-      Handler: dist/handlers/auth.handler.refresh
+      CodeUri: ../backend/dist/handlers
+      Handler: auth.handler.refresh
       Architectures:
         - x86_64
       Events:
