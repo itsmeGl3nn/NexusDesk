@@ -12,7 +12,7 @@ const client = new DynamoDBClient({
   ...(process.env.AWS_ENDPOINT && { endpoint: process.env.AWS_ENDPOINT }),
 });
 const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = process.env.TABLE_NAME!;
+const TABLE_NAME = process.env.USERS_TABLE!;
 
 export async function putUser(user: User): Promise<void> {
   await docClient.send(

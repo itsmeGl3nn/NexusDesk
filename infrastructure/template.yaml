@@ -9,19 +9,95 @@ Globals:
     MemorySize: 128
     Environment:
       Variables:
-        TABLE_NAME: !Ref ContactCenterTable
+        USERS_TABLE: !Ref UsersTable
+        TICKETS_TABLE: !Ref TicketsTable
+        CALLS_TABLE: !Ref CallsTable
+        LOGS_TABLE: !Ref LogsTable
+        TENANTS_TABLE: !Ref TenantsTable
         COGNITO_USER_POOL_ID: !Ref CognitoUserPool
         COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
 
 Resources:
 
   # ============================================================
-  # DynamoDB
+  # DynamoDB Tables
   # ============================================================
-  ContactCenterTable:
+  UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: ContactCenter
+      TableName: Users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  TicketsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Tickets
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  CallsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Calls
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  LogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Logs
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  TenantsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Tenants
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: PK
@@ -119,7 +195,11 @@ Resources:
               - dynamodb:DeleteItem
               - dynamodb:Query
             Resource:
-              - !GetAtt ContactCenterTable.Arn
+              - !GetAtt UsersTable.Arn
+              - !GetAtt TicketsTable.Arn
+              - !GetAtt CallsTable.Arn
+              - !GetAtt LogsTable.Arn
+              - !GetAtt TenantsTable.Arn
 
   # ============================================================
   # Lambda Functions
@@ -297,6 +377,18 @@ Outputs:
   CognitoUserPoolClientId:
     Description: Cognito User Pool Client ID
     Value: !Ref CognitoUserPoolClient
-  ContactCenterTableArn:
-    Description: DynamoDB table ARN
-    Value: !GetAtt ContactCenterTable.Arn
+  UsersTableArn:
+    Description: Users DynamoDB table ARN
+    Value: !GetAtt UsersTable.Arn
+  TicketsTableArn:
+    Description: Tickets DynamoDB table ARN
+    Value: !GetAtt TicketsTable.Arn
+  CallsTableArn:
+    Description: Calls DynamoDB table ARN
+    Value: !GetAtt CallsTable.Arn
+  LogsTableArn:
+    Description: Logs DynamoDB table ARN
+    Value: !GetAtt LogsTable.Arn
+  TenantsTableArn:
+    Description: Tenants DynamoDB table ARN
+    Value: !GetAtt TenantsTable.Arn
