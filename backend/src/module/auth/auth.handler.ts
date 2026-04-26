@@ -1,106 +1,95 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
+import { CognitoIdentityProviderServiceException } from "@aws-sdk/client-cognito-identity-provider";
 import * as cognito from "../../core/auth/cognito";
+import type { LoginInput, SignupInput, ConfirmInput, RefreshInput } from "./types";
 
 function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
+  return { statusCode, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
 }
 
-/** POST /auth/login */
+function getRawBody(event: APIGatewayProxyEventV2): string | undefined {
+  if (!event.body) return undefined;
+  return event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf-8") : event.body;
+}
+
+function parseBody<T>(event: APIGatewayProxyEventV2): { ok: true; data: T } | { ok: false; result: APIGatewayProxyResultV2 } {
+  const raw = getRawBody(event);
+  if (!raw) return { ok: false, result: json(400, { message: "Request body is required" }) };
+  try {
+    return { ok: true, data: JSON.parse(raw) as T };
+  } catch {
+    return { ok: false, result: json(400, { message: "Invalid JSON body" }) };
+  }
+}
+
+function toCognitoMessage(err: unknown, fallback: string): string {
+  if (err instanceof CognitoIdentityProviderServiceException) {
+    const safe: Record<string, string> = {
+      NotAuthorizedException:    "Incorrect email or password.",
+      UserNotFoundException:     "Incorrect email or password.",
+      UserNotConfirmedException: "Account not confirmed. Check your email.",
+      CodeMismatchException:     "Invalid confirmation code.",
+      ExpiredCodeException:      "Confirmation code has expired.",
+      UsernameExistsException:   "An account with this email already exists.",
+    };
+    return safe[err.name] ?? fallback;
+  }
+  return fallback;
+}
+
 export async function login(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
-  if (!event.body) return json(400, { message: "Request body is required" });
+  const parsed = parseBody<LoginInput>(event);
+  if (!parsed.ok) return parsed.result;
 
-  let input: { email?: string; password?: string };
-  try {
-    input = JSON.parse(event.body);
-  } catch {
-    return json(400, { message: "Invalid JSON body" });
-  }
-
-  if (!input.email || !input.password) {
-    return json(400, { message: "email and password are required" });
-  }
+  const { email, password } = parsed.data;
+  if (!email || !password) return json(400, { message: "email and password are required" });
 
   try {
-    const tokens = await cognito.signIn(input.email, input.password);
-    return json(200, tokens);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Authentication failed";
-    return json(401, { message });
+    return json(200, await cognito.signIn(email, password));
+  } catch (err) {
+    return json(401, { message: toCognitoMessage(err, "Authentication failed") });
   }
 }
 
-/** POST /auth/signup */
 export async function signup(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
-  if (!event.body) return json(400, { message: "Request body is required" });
+  const parsed = parseBody<SignupInput>(event);
+  if (!parsed.ok) return parsed.result;
 
-  let input: { email?: string; password?: string; tenantId?: string };
-  try {
-    input = JSON.parse(event.body);
-  } catch {
-    return json(400, { message: "Invalid JSON body" });
-  }
-
-  if (!input.email || !input.password || !input.tenantId) {
-    return json(400, { message: "email, password, and tenantId are required" });
-  }
+  const { email, password, tenantId } = parsed.data;
+  if (!email || !password || !tenantId) return json(400, { message: "email, password, and tenantId are required" });
 
   try {
-    const result = await cognito.signUp(input.email, input.password, input.tenantId);
-    return json(201, result);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Sign-up failed";
-    return json(400, { message });
+    return json(201, await cognito.signUp(email, password, tenantId));
+  } catch (err) {
+    return json(400, { message: toCognitoMessage(err, "Sign-up failed") });
   }
 }
 
-/** POST /auth/confirm */
 export async function confirmSignup(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
-  if (!event.body) return json(400, { message: "Request body is required" });
+  const parsed = parseBody<ConfirmInput>(event);
+  if (!parsed.ok) return parsed.result;
 
-  let input: { email?: string; code?: string };
-  try {
-    input = JSON.parse(event.body);
-  } catch {
-    return json(400, { message: "Invalid JSON body" });
-  }
-
-  if (!input.email || !input.code) {
-    return json(400, { message: "email and code are required" });
-  }
+  const { email, code } = parsed.data;
+  if (!email || !code) return json(400, { message: "email and code are required" });
 
   try {
-    await cognito.confirmSignUp(input.email, input.code);
+    await cognito.confirmSignUp(email, code);
     return json(200, { message: "Account confirmed" });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Confirmation failed";
-    return json(400, { message });
+  } catch (err) {
+    return json(400, { message: toCognitoMessage(err, "Confirmation failed") });
   }
 }
 
-/** POST /auth/refresh */
 export async function refresh(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
-  if (!event.body) return json(400, { message: "Request body is required" });
+  const parsed = parseBody<RefreshInput>(event);
+  if (!parsed.ok) return parsed.result;
 
-  let input: { refreshToken?: string };
-  try {
-    input = JSON.parse(event.body);
-  } catch {
-    return json(400, { message: "Invalid JSON body" });
-  }
-
-  if (!input.refreshToken) {
-    return json(400, { message: "refreshToken is required" });
-  }
+  const { refreshToken } = parsed.data;
+  if (!refreshToken) return json(400, { message: "refreshToken is required" });
 
   try {
-    const tokens = await cognito.refreshTokens(input.refreshToken);
-    return json(200, tokens);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Token refresh failed";
-    return json(401, { message });
+    return json(200, await cognito.refreshTokens(refreshToken));
+  } catch (err) {
+    return json(401, { message: toCognitoMessage(err, "Token refresh failed") });
   }
 }
