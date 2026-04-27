@@ -1,4 +1,4 @@
-import type { AuthenticatedEvent } from "../auth/authorize";
+import type { AuthenticatedEvent } from "./authorize";
 
 /**
  * Extract the tenant ID from an authenticated event.

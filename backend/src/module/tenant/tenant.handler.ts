@@ -1,7 +1,7 @@
 import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { CognitoIdentityProviderServiceException } from "@aws-sdk/client-cognito-identity-provider";
 import * as tenantService from "./tenant.service";
-import type { RegisterTenantInput } from "./tenant.types";
+import { parseRegisterTenantInput, ValidationError } from "./tenant.schema";
 
 function json(statusCode: number, body: unknown): APIGatewayProxyResult {
   return {
@@ -25,25 +25,21 @@ export async function registerTenant(
   const raw = getRawBody(event);
   if (!raw) return json(400, { message: "Request body is required" });
 
-  let input: RegisterTenantInput;
+  let parsed: unknown;
   try {
-    input = JSON.parse(raw) as RegisterTenantInput;
+    parsed = JSON.parse(raw);
   } catch {
     return json(400, { message: "Invalid JSON body" });
   }
 
-  const { tenantName, adminEmail, adminPassword, adminFirstName, adminLastName } = input;
-  if (!tenantName || !adminEmail || !adminPassword || !adminFirstName || !adminLastName) {
-    return json(400, {
-      message:
-        "tenantName, adminEmail, adminPassword, adminFirstName, and adminLastName are required",
-    });
-  }
-
   try {
+    const input = parseRegisterTenantInput(parsed);
     const result = await tenantService.registerTenant(input);
     return json(201, result);
   } catch (err) {
+    if (err instanceof ValidationError) {
+      return json(400, { message: err.message });
+    }
     if (err instanceof CognitoIdentityProviderServiceException) {
       const safe: Record<string, string> = {
         UsernameExistsException: "An account with this email already exists.",

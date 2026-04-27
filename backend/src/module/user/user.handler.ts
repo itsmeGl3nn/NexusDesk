@@ -1,6 +1,6 @@
 import type { APIGatewayProxyResult } from "aws-lambda";
 import { authorize, type AuthenticatedEvent } from "../../core/auth/authorize";
-import { getTenantId } from "../../core/tenant/getTenant";
+import { getTenantId } from "../../core/auth/getTenantId";
 import * as userService from "./user.service";
 import type { CreateUserInput, UpdateUserInput } from "./user.types";
 import { Role } from "../../core/auth/roles";

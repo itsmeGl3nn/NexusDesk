@@ -1,4 +1,4 @@
-import type { TicketStatus } from "../../core/ticket/status";
+import type { TicketStatus } from "./ticket.status";
 
 export interface Ticket {
     PK: string;

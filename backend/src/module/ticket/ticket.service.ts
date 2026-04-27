@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import * as repo from "./ticket.repository";
-import { TicketStatus, assertTransition } from "../../core/ticket/status";
+import { TicketStatus, assertTransition } from "./ticket.status";
 import type { Ticket, CreateTicketInput, UpdateTicketInput } from "./ticket.types";
 
 export class TicketNotFoundError extends Error {
