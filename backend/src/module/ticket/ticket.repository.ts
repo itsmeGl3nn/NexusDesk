@@ -37,7 +37,7 @@ export async function getTicket(
   return result.Item as Ticket | undefined;
 }
 
-export async function ListTickets(tenantId: string): Promise<Ticket[]> {
+export async function listTickets(tenantId: string): Promise<Ticket[]> {
   const result = await docClient.send(
     new QueryCommand({
       TableName: TABLE_NAME,
@@ -51,4 +51,38 @@ export async function ListTickets(tenantId: string): Promise<Ticket[]> {
   return (result.Items ??[]) as Ticket[];
 }
 
+export async function updateTicket(
+  tenantId: string,
+  ticketId: string,
+  updates: Partial<Omit<Ticket, "PK" | "SK" | "createdAt">>,
+): Promise<Ticket> {
+  const expressions: string[] = [];
+  const names: Record<string, string> = {};
+  const values: Record<string, unknown> = {};
 
+  for (const [key, value] of Object.entries(updates)) {
+    if (value === undefined) continue;
+    const attr = `#${key}`;
+    const val = `:${key}`;
+    expressions.push(`${attr} = ${val}`);
+    names[attr] = key;
+    values[val] = value;
+  }
+
+  expressions.push("#updatedAt = :updatedAt");
+  names["#updatedAt"] = "updatedAt";
+  values[":updatedAt"] = new Date().toISOString();
+
+  const result = await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: `TENANT#${tenantId}`, SK: `TICKET#${ticketId}` },
+      UpdateExpression: `SET ${expressions.join(", ")}`,
+      ExpressionAttributeNames: names,
+      ExpressionAttributeValues: values,
+      ConditionExpression: "attribute_exists(SK)",
+      ReturnValues: "ALL_NEW",
+    }),
+  );
+  return result.Attributes as Ticket;
+}

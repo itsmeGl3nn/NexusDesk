@@ -179,6 +179,24 @@ Resources:
             Path: /auth/refresh
             Method: post
 
+  # ============================================================
+  # Tenant Registration (public)
+  # ============================================================
+  RegisterTenantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: RegisterTenantFunction
+      CodeUri: ../backend
+      Handler: dist/handlers/tenant.handler.registerTenant
+      Architectures:
+        - x86_64
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /tenants/register
+            Method: post
+
 Outputs:
   ApiEndpoint:
     Description: API Gateway endpoint URL

@@ -1,8 +1,8 @@
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
+import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { verifyJwt, type JwtPayload } from "./verifyJwt";
 import { hasRole, type Role } from "./roles";
 
-export interface AuthenticatedEvent extends APIGatewayProxyEventV2 {
+export interface AuthenticatedEvent extends APIGatewayProxyEvent {
   auth: {
     sub: string;
     email: string;
@@ -15,9 +15,9 @@ export interface AuthenticatedEvent extends APIGatewayProxyEventV2 {
 
 type AuthenticatedHandler = (
   event: AuthenticatedEvent
-) => Promise<APIGatewayProxyResultV2>;
+) => Promise<APIGatewayProxyResult>;
 
-function jsonResponse(statusCode: number, body: Record<string, unknown>): APIGatewayProxyResultV2 {
+function jsonResponse(statusCode: number, body: Record<string, unknown>): APIGatewayProxyResult {
   return {
     statusCode,
     headers: { "Content-Type": "application/json" },
@@ -33,7 +33,7 @@ function jsonResponse(statusCode: number, body: Record<string, unknown>): APIGat
  *   export const handler = authorize(async (event) => { ... }, "admin");
  */
 export function authorize(handler: AuthenticatedHandler, requiredRole?: Role) {
-  return async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+  return async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const authHeader = event.headers?.authorization ?? event.headers?.Authorization;
     if (!authHeader) {
       return jsonResponse(401, { message: "Missing Authorization header" });

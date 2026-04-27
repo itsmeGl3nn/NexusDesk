@@ -6,7 +6,8 @@ export interface User {
   userId: string;
   tenantId: string;
   email: string;
-  displayName: string;
+  firstName: string;
+  lastName: string;
   role: Role;
   status: "active" | "inactive";
   createdAt: string;
@@ -15,12 +16,14 @@ export interface User {
 
 export interface CreateUserInput {
   email: string;
-  displayName: string;
+  firstName: string;
+  lastName: string;
   role: Role;
 }
 
 export interface UpdateUserInput {
-  displayName?: string;
+  firstName?: string;
+  lastName?: string;
   role?: Role;
   status?: "active" | "inactive";
 }

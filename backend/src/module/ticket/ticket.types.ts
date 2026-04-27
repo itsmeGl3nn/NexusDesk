@@ -3,6 +3,8 @@ import type { TicketStatus } from "../../core/ticket/status";
 export interface Ticket {
     PK: string;
     SK: string;
+    ticketId: string;
+    tenantId: string;
     customerName: string;
     customerEmail: string;
     subject: string;
@@ -17,6 +19,13 @@ export interface CreateTicketInput {
     customerEmail: string;
     subject: string;
     description: string;
-    status: TicketStatus;
+}
+
+export interface UpdateTicketInput {
+    customerName?: string;
+    customerEmail?: string;
+    subject?: string;
+    description?: string;
+    status?: TicketStatus;
 }
 

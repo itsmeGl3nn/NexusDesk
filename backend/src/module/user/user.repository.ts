@@ -51,7 +51,7 @@ export async function listUsers(tenantId: string): Promise<User[]> {
 export async function updateUser(
   tenantId: string,
   userId: string,
-  fields: Partial<Pick<User, "displayName" | "role" | "status">>
+  fields: Partial<Pick<User, "firstName" | "lastName" | "role" | "status">>
 ): Promise<User> {
   const expressions: string[] = [];
   const names: Record<string, string> = {};

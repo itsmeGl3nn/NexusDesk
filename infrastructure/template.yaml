@@ -352,6 +352,33 @@ Resources:
             Path: /auth/refresh
             Method: post
 
+  # ============================================================
+  # Tenant Registration (public — provisions tenant + admin user)
+  # ============================================================
+  RegisterTenantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: RegisterTenantFunction
+      CodeUri: ../backend/dist/handlers
+      Handler: tenant.registerTenant
+      Architectures:
+        - x86_64
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+              Resource: !GetAtt CognitoUserPool.Arn
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /tenants/register
+            Method: post
+
 Outputs:
   ApiEndpoint:
     Description: LocalStack API Gateway endpoint

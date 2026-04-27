@@ -1,11 +1,11 @@
-import type { APIGatewayProxyResultV2 } from "aws-lambda";
+import type { APIGatewayProxyResult } from "aws-lambda";
 import { authorize, type AuthenticatedEvent } from "../../core/auth/authorize";
 import { getTenantId } from "../../core/tenant/getTenant";
 import * as userService from "./user.service";
 import type { CreateUserInput, UpdateUserInput } from "./user.types";
 import { Role } from "../../core/auth/roles";
 
-function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
+function json(statusCode: number, body: unknown): APIGatewayProxyResult {
   return {
     statusCode,
     headers: { "Content-Type": "application/json" },
@@ -25,8 +25,8 @@ export const createUser = authorize(async (event: AuthenticatedEvent) => {
     return json(400, { message: "Invalid JSON body" });
   }
 
-  if (!input.email || !input.displayName || !input.role) {
-    return json(400, { message: "email, displayName, and role are required" });
+  if (!input.email || !input.firstName || !input.lastName || !input.role) {
+    return json(400, { message: "email, firstName, lastName, and role are required" });
   }
 
   const validRoles: string[] = [Role.ADMIN, Role.SUPERVISOR, Role.AGENT];
