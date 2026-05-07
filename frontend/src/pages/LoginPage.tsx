@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Mail,
   Lock,
@@ -8,7 +9,6 @@ import {
   MessageSquareText,
   Phone,
   Headset,
-  ShieldCheck,
 } from "lucide-react";
 import agentDashboard from "../assets/image.png";
 
@@ -17,10 +17,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login submitted", { email, rememberMe });
+    // No backend yet — just redirect to dashboard
+    navigate('/dashboard');
   };
 
   return (
@@ -133,10 +135,6 @@ export default function LoginPage() {
             </button>
           </p>
 
-          <div className="mt-6 flex items-center justify-center gap-2 rounded-lg border border-gray-100 bg-gray-50 py-2.5 text-xs text-gray-500">
-            <ShieldCheck size={14} className="text-gray-400" />
-            Secure login protected by JWT authentication
-          </div>
         </div>
       </div>
     </div>
