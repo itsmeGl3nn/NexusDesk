@@ -6,7 +6,7 @@ export default function TicketDetailPanel() {
   const { tickets, selectedTicketId } = useTicketStore();
   const [notes, setNotes] = useState('');
 
-  const ticket = tickets.find((t) => t.id === selectedTicketId);
+  const ticket = tickets.find((t) => t.ticketId === selectedTicketId);
 
   if (!ticket) {
     return (
@@ -31,8 +31,8 @@ export default function TicketDetailPanel() {
     <div className="flex flex-col h-full p-5 overflow-auto">
       {/* Header */}
       <div className="mb-5">
-        <h2 className="text-lg font-bold text-gray-900">Ticket-{ticket.id.split('-')[1]}</h2>
-        <p className="text-sm font-medium text-gray-700">{ticket.customer}</p>
+        <h2 className="text-lg font-bold text-gray-900">{ticket.ticketId}</h2>
+        <p className="text-sm font-medium text-gray-700">{ticket.customerName}</p>
         <p className="text-xs text-gray-500">Created {timeAgo}</p>
       </div>
 

@@ -6,9 +6,9 @@ export default function DashboardPage() {
   const tickets = useTicketStore((s) => s.tickets);
   const user = useAuthStore((s) => s.user);
 
-  const openCount = tickets.filter((t) => t.status === 'OPEN').length;
-  const inProgressCount = tickets.filter((t) => t.status === 'IN_PROGRESS').length;
-  const resolvedCount = tickets.filter((t) => t.status === 'RESOLVED').length;
+  const openCount = tickets.filter((t) => t.status === 'open').length;
+  const inProgressCount = tickets.filter((t) => t.status === 'in_progress').length;
+  const resolvedCount = tickets.filter((t) => t.status === 'resolved').length;
 
   const isSupervisor = user?.role === 'supervisor' || user?.role === 'admin';
 
@@ -77,15 +77,15 @@ export default function DashboardPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
         <div className="space-y-3">
           {tickets.slice(0, 4).map((ticket) => (
-            <div key={ticket.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+            <div key={ticket.ticketId} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${
-                  ticket.status === 'OPEN' ? 'bg-orange-400' :
-                  ticket.status === 'IN_PROGRESS' ? 'bg-blue-400' : 'bg-green-400'
+                  ticket.status === 'open' ? 'bg-orange-400' :
+                  ticket.status === 'in_progress' ? 'bg-blue-400' : 'bg-green-400'
                 }`} />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">{ticket.id}</p>
-                  <p className="text-xs text-gray-500">{ticket.customer} — {ticket.issue}</p>
+                  <p className="text-sm font-medium text-gray-800">{ticket.ticketId}</p>
+                  <p className="text-xs text-gray-500">{ticket.customerName} — {ticket.subject}</p>
                 </div>
               </div>
               <span className="text-xs text-gray-400">

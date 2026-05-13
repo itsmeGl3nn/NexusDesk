@@ -1,10 +1,11 @@
 import type { TicketStatus } from '../../types/ticket';
 
 const statusConfig: Record<TicketStatus, { label: string; className: string }> = {
-  OPEN: { label: 'OPEN', className: 'bg-orange-100 text-orange-700' },
-  IN_PROGRESS: { label: 'IN PROGRESS', className: 'bg-blue-100 text-blue-700' },
-  RESOLVED: { label: 'RESOLVED', className: 'bg-green-100 text-green-700' },
-  CLOSED: { label: 'CLOSED', className: 'bg-gray-100 text-gray-600' },
+  open: { label: 'OPEN', className: 'bg-orange-100 text-orange-700' },
+  in_progress: { label: 'IN PROGRESS', className: 'bg-blue-100 text-blue-700' },
+  resolved: { label: 'RESOLVED', className: 'bg-green-100 text-green-700' },
+  closed: { label: 'CLOSED', className: 'bg-gray-100 text-gray-600' },
+  reopened: { label: 'REOPENED', className: 'bg-yellow-100 text-yellow-700' },
 };
 
 interface StatusBadgeProps {

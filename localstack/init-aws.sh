@@ -137,7 +137,7 @@ $AWS cognito-idp create-group --user-pool-id "$USER_POOL_ID" --group-name agent 
 # ============================================================
 # Seed Users (Cognito + DynamoDB)
 # ============================================================
-TENANT_ID=$(uuidgen)
+TENANT_ID=$(python3 -c "import uuid; print(uuid.uuid4())")
 NOW=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 
 create_seed_user() {

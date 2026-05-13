@@ -1,8 +1,11 @@
 import { Search, Bell, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
 export default function Header() {
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
 
   return (
     <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
@@ -39,7 +42,10 @@ export default function Header() {
         </div>
 
         {/* Logout */}
-        <button className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors">
+        <button
+          onClick={() => { logout(); navigate('/login'); }}
+          className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+        >
           <span className="flex items-center gap-1.5">
             <LogOut className="w-4 h-4" />
             Logout
