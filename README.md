@@ -85,20 +85,25 @@ flowchart TB
         NOTIFY_FN[Notification Lambda]
     end
 
-    subgraph AI["🤖 AI Agent Layer"]
-        OLLAMA[Ollama Runtime]
-        LLAMA[Llama 3<br/>Reasoning + Chat]
-        EMBED[Embedding Model<br/>nomic-embed-text]
-        TRIAGE[Auto-Triage Agent<br/>Priority + Category]
-        SENTIMENT[Sentiment Agent<br/>Frustration Detection]
-        RESPOND[Response Agent<br/>Draft Replies via RAG]
-        ESCALATE[Escalation Agent<br/>Risk Prediction]
-        ROUTE[Smart Routing Agent<br/>Agent Assignment]
-        ANALYTICS_AI[Analytics Agent<br/>NL Queries]
+    subgraph PYAI["🐍 AI Service (Python + FastAPI)"]
+        PYAPI[FastAPI Server<br/>localhost:8100]
+        TRIAGE[Auto-Triage Agent]
+        SENTIMENT[Sentiment Agent]
+        RESPOND[Response Agent<br/>RAG-based]
+        ESCALATE[Escalation Agent]
+        ROUTE[Smart Routing Agent]
+        ANALYTICS_AI[Analytics Agent]
+        RAG_SVC[RAG Pipeline<br/>LangChain]
+    end
+
+    subgraph AI["🤖 LLM Runtime (Local)"]
+        OLLAMA[Ollama<br/>localhost:11434]
+        LLAMA[Llama 3 8B<br/>Free · Local]
+        EMBED[nomic-embed-text<br/>Free · Local]
     end
 
     subgraph VECTOR["🧠 Vector Store"]
-        CHROMA[ChromaDB<br/>Ticket Embeddings<br/>Resolution History]
+        CHROMA[ChromaDB<br/>localhost:8000<br/>Ticket Embeddings]
     end
 
     subgraph DATA["💾 Data Layer"]
@@ -134,18 +139,19 @@ flowchart TB
     CALL_FN -.production.-> CONNECT
     USER_FN --> DYNAMO
     LOG_FN --> DYNAMO
-    AI_FN --> OLLAMA
-    AI_FN --> CHROMA
+    AI_FN -->|HTTP| PYAPI
     AI_FN --> DYNAMO
 
-    OLLAMA --> LLAMA & EMBED
+    PYAPI --> TRIAGE & SENTIMENT & RESPOND & ESCALATE & ROUTE & ANALYTICS_AI
+    RAG_SVC --> CHROMA
+    RAG_SVC --> OLLAMA
     TRIAGE --> OLLAMA
     SENTIMENT --> OLLAMA
-    RESPOND --> CHROMA
-    RESPOND --> OLLAMA
+    RESPOND --> RAG_SVC
     ESCALATE --> OLLAMA
     ROUTE --> DYNAMO
-    ANALYTICS_AI --> CHROMA
+    ANALYTICS_AI --> RAG_SVC
+    OLLAMA --> LLAMA & EMBED
 
     TICKET_FN -.event.-> AI_FN
     AI_FN -.auto-assign.-> TICKET_FN
@@ -173,11 +179,16 @@ flowchart TB
 - **S3** — file attachments, exports, call recordings
 - **ChromaDB** — vector store for AI agent RAG pipeline
 
-### 3.4 AI Layer
-- **Ollama** — local LLM runtime (no cloud API dependency)
-- **Llama 3** — primary reasoning model for triage, sentiment, response generation
-- **nomic-embed-text** — embeddings for ticket similarity + RAG
+### 3.4 AI Layer (Python Microservice)
+- **FastAPI (Python)** — dedicated AI service running on `localhost:8100`, called by Node.js Lambdas via HTTP
+- **Ollama** — local LLM runtime on `localhost:11434` (no cloud API, no costs, fully offline)
+- **Llama 3 8B** — free, open-weight reasoning model for triage, sentiment, response generation
+- **nomic-embed-text** — free, open embedding model for ticket similarity + RAG
+- **LangChain** — agent orchestration, prompt management, RAG pipeline
+- **ChromaDB** — local vector store on `localhost:8000` for semantic search
 - **RAG pipeline** — embed tickets → vector search → context retrieval → LLM generation
+
+> **Why Python?** The AI/ML ecosystem is Python-first — LangChain, ChromaDB, Ollama SDK, instructor, and Langfuse all have native Python libraries with richer features than their JS counterparts. Node.js Lambdas handle CRUD/auth; Python handles all AI reasoning.
 
 ### 3.5 Call Layer (Amazon Connect)
 - **Local** — mock `startCallHandler` returning simulated responses
@@ -215,29 +226,36 @@ flowchart TB
 | **Logging** | Custom logger utility | Structured request/error logging |
 | **SDK** | AWS SDK v3 | DynamoDB, S3, Lambda, Connect clients |
 
-### 4.3 AI / LLM Stack
-| Layer | Choice | Purpose |
-|---|---|---|
-| **LLM runtime** | **Ollama** | Local model serving, air-gapped capable |
-| **Primary LLM** | **Llama 3 8B** | Triage, sentiment, response drafting, analytics |
-| **Fast LLM** | **Llama 3 8B Q4** (quantized) | High-volume classification, quick triage |
-| **Embeddings** | **nomic-embed-text** via Ollama | Ticket + resolution embeddings |
-| **Vector store** | **ChromaDB** | Semantic search over ticket history |
-| **RAG pipeline** | Custom (embed → search → retrieve → generate) | Context-aware AI responses |
-| **Structured output** | Zod schemas + JSON mode | Reliable triage/sentiment JSON |
-| **Agent framework** | Custom agent loop (or LangChain.js) | Multi-agent orchestration |
-| **Tracing** | Langfuse (optional) | LLM observability |
+### 4.3 AI / LLM Stack (Python)
+| Layer | Choice | Purpose | Cost |
+|---|---|---|---|
+| **AI service** | **FastAPI** (Python 3.12) | Dedicated AI microservice, Docker container | Free |
+| **LLM runtime** | **Ollama** (`localhost:11434`) | Local model serving, fully offline | Free |
+| **Primary LLM** | **Llama 3 8B** (via Ollama) | Triage, sentiment, response drafting, analytics | Free |
+| **Fast LLM** | **Llama 3 8B Q4** (quantized) | High-volume classification, quick triage | Free |
+| **Embeddings** | **nomic-embed-text** (via Ollama) | Ticket + resolution embeddings (768-dim) | Free |
+| **Vector store** | **ChromaDB** (`localhost:8000`) | Semantic search over ticket history | Free |
+| **RAG framework** | **LangChain** | RAG pipeline, prompt templates, chain composition | Free |
+| **Agent framework** | **LangChain Agents** (or LangGraph) | Multi-agent orchestration, tool use | Free |
+| **Structured output** | **Instructor** + **Pydantic** | Reliable JSON for triage/sentiment schemas | Free |
+| **Ollama SDK** | **ollama** (Python) | Native Ollama client (generate, embed, chat) | Free |
+| **ChromaDB SDK** | **chromadb** (Python) | Native vector store client (full API) | Free |
+| **Tracing** | **Langfuse** (optional) | LLM observability, prompt versioning | Free tier |
+| **HTTP framework** | **uvicorn** + **httpx** | ASGI server + async HTTP client | Free |
 
-**LLM routing strategy:** All inference local via Ollama. For production, optionally route complex reasoning to Claude/GPT-4.1 via LiteLLM.
+**All models are free and open-weight.** Zero cloud LLM costs. Everything runs on your local machine via Ollama + Docker.
 
-### 4.4 RAG Pipeline
+### 4.4 RAG Pipeline (Python)
 | Layer | Choice |
 |---|---|
-| **Embeddings** | `nomic-embed-text` via Ollama (768-dim) |
-| **Vector store** | ChromaDB (local, persistent) |
+| **Embeddings** | `nomic-embed-text` via Ollama (768-dim) — free, local |
+| **Vector store** | ChromaDB (local, persistent, Docker) |
+| **Framework** | LangChain `OllamaEmbeddings` + `Chroma` retriever |
+| **Chunking** | LangChain `RecursiveCharacterTextSplitter` for ticket text |
 | **Indexed corpora** | (1) Resolved tickets, (2) Agent notes, (3) Knowledge base articles, (4) Call transcripts |
-| **Retrieval** | Vector similarity (cosine) → top-k → LLM |
+| **Retrieval** | Vector similarity (cosine) → top-k=5 → rerank → LLM |
 | **Refresh** | Incremental indexing on ticket resolve/close |
+| **Structured output** | Instructor + Pydantic models for typed responses |
 
 ### 4.5 Infrastructure
 | Layer | Choice |
@@ -489,7 +507,7 @@ frontend/
 ```
 backend/
 ├── template.yaml                # SAM template (Lambda + API GW + DynamoDB)
-├── docker-compose.yml           # LocalStack + Ollama + ChromaDB
+├── docker-compose.yml           # LocalStack + Ollama + ChromaDB + AI Service
 ├── src/
 │   ├── handlers/
 │   │   ├── auth/
@@ -507,11 +525,11 @@ backend/
 │   │   │   ├── listCalls.ts
 │   │   │   └── getCall.ts
 │   │   ├── ai/
-│   │   │   ├── triage.ts
-│   │   │   ├── sentiment.ts
-│   │   │   ├── suggestResponse.ts
-│   │   │   ├── escalationRisk.ts
-│   │   │   └── chat.ts
+│   │   │   ├── triage.ts          # Proxy → Python AI service
+│   │   │   ├── sentiment.ts       # Proxy → Python AI service
+│   │   │   ├── suggestResponse.ts  # Proxy → Python AI service
+│   │   │   ├── escalationRisk.ts   # Proxy → Python AI service
+│   │   │   └── chat.ts             # Proxy → Python AI service
 │   │   ├── logs/
 │   │   │   └── getLogs.ts
 │   │   ├── users/
@@ -529,9 +547,7 @@ backend/
 │   │   ├── callService.ts       # startCall(), logCall()
 │   │   ├── dynamodb.ts          # DynamoDB client (LocalStack / AWS auto-detect)
 │   │   ├── s3.ts                # S3 client
-│   │   ├── ollama.ts            # Ollama API client
-│   │   ├── chromadb.ts          # ChromaDB client
-│   │   └── rag.ts               # RAG pipeline service
+│   │   └── aiClient.ts          # HTTP client → Python AI service (localhost:8100)
 │   ├── middleware/
 │   │   ├── auth.ts              # JWT verification
 │   │   ├── rbac.ts              # Role-based access control
@@ -542,20 +558,59 @@ backend/
 │   │   ├── jwt.ts               # Token sign/verify
 │   │   ├── logger.ts            # Structured logging
 │   │   └── config.ts            # Environment config loader
-│   ├── types/
-│   │   ├── ticket.ts            # Ticket, CreateTicketInput, UpdateTicketInput
-│   │   ├── user.ts              # User, LoginInput, RegisterInput
-│   │   ├── call.ts              # Call, StartCallInput
-│   │   └── api.ts               # ApiResponse, ApiError
-│   └── agents/
-│       ├── triageAgent.ts       # Auto-priority + category classification
-│       ├── sentimentAgent.ts    # Frustration detection + scoring
-│       ├── responseAgent.ts     # RAG-based response suggestion
-│       ├── escalationAgent.ts   # Risk prediction
-│       ├── routingAgent.ts      # Smart agent assignment
-│       └── analyticsAgent.ts    # NL query over operational data
+│   └── types/
+│       ├── ticket.ts            # Ticket, CreateTicketInput, UpdateTicketInput
+│       ├── user.ts              # User, LoginInput, RegisterInput
+│       ├── call.ts              # Call, StartCallInput
+│       └── api.ts               # ApiResponse, ApiError
 ├── tsconfig.json
 └── package.json
+```
+
+### 9.1 Python AI Service Folder Structure
+
+```
+ai-service/                          # 🐍 Python AI Microservice
+├── app/
+│   ├── main.py                      # FastAPI app + uvicorn entrypoint
+│   ├── config.py                    # Settings (Ollama URL, ChromaDB URL, model names)
+│   ├── models/
+│   │   ├── schemas.py               # Pydantic models (TriageResult, SentimentResult, etc.)
+│   │   ├── ticket.py                # Ticket data models
+│   │   └── agent.py                 # Agent response models
+│   ├── agents/
+│   │   ├── triage_agent.py          # Auto-priority + category classification
+│   │   ├── sentiment_agent.py       # Frustration detection + scoring
+│   │   ├── response_agent.py        # RAG-based response suggestion
+│   │   ├── escalation_agent.py      # Risk prediction
+│   │   ├── routing_agent.py         # Smart agent assignment
+│   │   └── analytics_agent.py       # NL query over operational data
+│   ├── services/
+│   │   ├── ollama_service.py        # Ollama client (generate, embed, chat)
+│   │   ├── chroma_service.py        # ChromaDB client (add, query, delete)
+│   │   ├── rag_service.py           # RAG pipeline (embed → search → retrieve → generate)
+│   │   └── embedding_service.py     # Embedding generation + indexing
+│   ├── routers/
+│   │   ├── triage.py                # POST /ai/triage
+│   │   ├── sentiment.py             # POST /ai/sentiment
+│   │   ├── suggest.py               # POST /ai/suggest-response
+│   │   ├── escalation.py            # GET /ai/escalation-risk/{id}
+│   │   ├── chat.py                  # POST /ai/chat
+│   │   └── embeddings.py            # POST /ai/embed (index new tickets)
+│   └── prompts/
+│       ├── triage_prompt.py         # Triage system/user prompt templates
+│       ├── sentiment_prompt.py      # Sentiment analysis prompts
+│       ├── response_prompt.py       # Response suggestion prompts
+│       └── analytics_prompt.py      # Analytics query prompts
+├── tests/
+│   ├── test_triage.py
+│   ├── test_sentiment.py
+│   ├── test_rag.py
+│   └── conftest.py
+├── Dockerfile                       # Python 3.12-slim + pip install
+├── requirements.txt                 # fastapi, uvicorn, ollama, chromadb, langchain, instructor, pydantic
+├── pyproject.toml                   # (optional) project metadata
+└── .env                             # OLLAMA_HOST, CHROMA_HOST, MODEL_NAME
 ```
 
 ---
@@ -622,23 +677,33 @@ backend/
 - New assignment notifications
 - Escalation alerts
 
-### Phase 8 — AI Infrastructure
-- Ollama setup + Docker Compose integration
-- Pull Llama 3 + nomic-embed-text models
-- AI service layer (services/ollama.ts)
-- ChromaDB setup + Docker Compose
-- ChromaDB service layer (services/chromadb.ts)
-- Embedding pipeline (ticket text → nomic-embed → ChromaDB)
-- RAG service (services/rag.ts)
+### Phase 8 — AI Infrastructure (Python)
+- Create `ai-service/` Python project (FastAPI + uvicorn)
+- `requirements.txt` (fastapi, uvicorn, ollama, chromadb, langchain, langchain-ollama, instructor, pydantic, httpx)
+- Dockerfile for ai-service (Python 3.12-slim)
+- Add ai-service + Ollama + ChromaDB to docker-compose.yml
+- Install Ollama locally, pull **Llama 3 8B** (free) + **nomic-embed-text** (free)
+- Ollama service layer (`services/ollama_service.py`) — generate, embed, chat
+- ChromaDB service layer (`services/chroma_service.py`) — add, query, delete
+- Embedding service (`services/embedding_service.py`) — ticket text → nomic-embed → ChromaDB
+- RAG service (`services/rag_service.py`) — embed → search → retrieve → generate via LangChain
+- Pydantic schemas (`models/schemas.py`) — TriageResult, SentimentResult, ResponseSuggestion
+- Prompt templates (`prompts/`) — triage, sentiment, response, analytics
+- FastAPI routers (`routers/`) — `/ai/triage`, `/ai/sentiment`, `/ai/chat`, etc.
+- Backend `aiClient.ts` — Node.js HTTP client to call Python service at `localhost:8100`
+- Test: `curl http://localhost:8100/health` → AI service running
+- Test: `curl http://localhost:11434/api/tags` → Ollama models loaded
 
-### Phase 9 — AI Agents
-- **Auto-Triage Agent** — classify priority + category on ticket creation
-- **Sentiment Analysis Agent** — detect frustration/urgency
-- **Response Suggestion Agent** — RAG-based draft replies
-- **Escalation Prediction Agent** — flag high-risk tickets
-- **Smart Routing Agent** — auto-assign to best-fit agent
-- **Analytics Agent** — natural language queries over data
-- AI chat UI in frontend
+### Phase 9 — AI Agents (Python)
+- **Auto-Triage Agent** (`agents/triage_agent.py`) — classify priority + category on ticket creation
+- **Sentiment Analysis Agent** (`agents/sentiment_agent.py`) — detect frustration/urgency, score 0–100
+- **Response Suggestion Agent** (`agents/response_agent.py`) — RAG-based draft replies via LangChain
+- **Escalation Prediction Agent** (`agents/escalation_agent.py`) — flag high-risk tickets
+- **Smart Routing Agent** (`agents/routing_agent.py`) — auto-assign to best-fit agent
+- **Analytics Agent** (`agents/analytics_agent.py`) — natural language queries over data
+- Instructor + Pydantic for structured LLM output (guaranteed JSON schemas)
+- AI chat UI in frontend (AIChatPanel component)
+- Wire Node.js Lambda AI handlers as proxies → Python service
 
 ### Phase 10 — Testing & Quality
 - Unit tests (backend handlers + services)
@@ -703,9 +768,10 @@ sequenceDiagram
     participant GW as API Gateway
     participant TKT as Ticket Lambda
     participant DB as DynamoDB
-    participant AI as AI Agent Layer
-    participant LLM as Ollama (Llama 3)
-    participant VEC as ChromaDB
+    participant AI as AI Lambda (Node.js)
+    participant PY as Python AI Service<br/>(FastAPI :8100)
+    participant LLM as Ollama (Llama 3)<br/>localhost:11434
+    participant VEC as ChromaDB<br/>localhost:8000
     participant WS as WebSocket
     actor Agent as Assigned Agent
     actor Supervisor
@@ -719,17 +785,23 @@ sequenceDiagram
 
     par Auto-Triage
         TKT->>AI: triage(subject, description)
-        AI->>LLM: Classify priority + category
-        LLM-->>AI: { priority: HIGH, category: "billing_dispute" }
+        AI->>PY: POST /ai/triage
+        PY->>LLM: ollama.generate(llama3, prompt)
+        LLM-->>PY: { priority: HIGH, category: "billing_dispute" }
+        PY-->>AI: TriageResult (Pydantic)
         AI->>DB: Update priority + category
     and Sentiment
         TKT->>AI: sentiment(description)
-        AI->>LLM: Analyze tone
-        LLM-->>AI: { sentiment: FRUSTRATED, score: 82 }
+        AI->>PY: POST /ai/sentiment
+        PY->>LLM: ollama.generate(llama3, prompt)
+        LLM-->>PY: { sentiment: FRUSTRATED, score: 82 }
+        PY-->>AI: SentimentResult (Pydantic)
         AI->>DB: Update sentiment + escalationRisk
     end
 
-    AI->>VEC: Embed ticket for RAG
+    AI->>PY: POST /ai/embed
+    PY->>LLM: ollama.embed(nomic-embed-text)
+    PY->>VEC: Store embedding
 
     AI->>AI: smartRoute(category, priority, agents)
     AI->>DB: Query agents (skills=billing, lowest workload)
@@ -746,10 +818,12 @@ sequenceDiagram
 
     Agent->>GW: POST /ai/suggest-response
     GW->>AI: suggestResponse(ticket)
-    AI->>VEC: Find 5 similar resolved tickets
-    VEC-->>AI: Past resolutions
-    AI->>LLM: Generate 3 draft responses
-    LLM-->>AI: Response options
+    AI->>PY: POST /ai/suggest-response
+    PY->>VEC: Find 5 similar resolved tickets (LangChain retriever)
+    VEC-->>PY: Past resolutions
+    PY->>LLM: Generate 3 draft responses
+    LLM-->>PY: Response options
+    PY-->>AI: ResponseSuggestion[] (Pydantic)
     AI-->>Agent: 3 suggested replies
 
     Agent->>GW: PUT /ticket/1234 (status: RESOLVED, notes)
@@ -780,6 +854,3 @@ sequenceDiagram
 - 🧪 A/B testing for AI response quality
 - 🌍 Multi-region deployment (AWS Global)
 - 📦 Plugin / extension marketplace for custom integrations
-
-
-
