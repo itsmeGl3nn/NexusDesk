@@ -1,6 +1,6 @@
 # NexusDesk — Implementation Plan
 
-> **NexusDesk** — AI-powered contact center intelligence. A serverless ticketing, call management, and customer operations platform with AI agents for auto-triage, sentiment analysis, and intelligent ticket routing — running on AWS Lambda + DynamoDB via LocalStack.
+> **NexusDesk** — AI-powered contact center intelligence. A serverless ticketing, call management, and customer operations platform with AI agents for auto-triage, sentiment analysis, and intelligent ticket routing.
 
 ---
 
