@@ -201,3 +201,43 @@ docker-compose.override.yml
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+
+
+# Python / ai-service
+venv/
+env/
+ENV/
+.venv/
+ai-service/venv/
+ai-service/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Python virtual environment activation artifacts
+pyvenv.cfg
+
+# pytest
+.pytest_cache/
+.tox/
+
+# mypy / type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter (if you end up prototyping there)
+.ipynb_checkpoints/
+
+# ChromaDB local persistence (if not using Docker volumes)
+ai-service/chroma_data/
+chroma_data/
+
+# Ollama model cache (if pulled locally instead of via Docker)
+.ollama/
