@@ -57,11 +57,18 @@ export function parseUpdateTicketInput(raw: unknown): UpdateTicketInput {
   const description = optionalString(r.description, "description");
   if (description !== undefined) input.description = description;
 
+  const resolution = optionalString(r.resolution, "resolution");
+  if (resolution !== undefined) input.resolution = resolution;
+
   if (r.status !== undefined) {
     if (typeof r.status !== "string" || !VALID_STATUSES.includes(r.status)) {
       throw new ValidationError(`status must be one of: ${VALID_STATUSES.join(", ")}`);
     }
     input.status = r.status as TicketStatus;
+  }
+
+  if (input.status === TicketStatus.RESOLVED && input.resolution === undefined) {
+    throw new ValidationError("resolution is required when status is resolved");
   }
 
   return input;

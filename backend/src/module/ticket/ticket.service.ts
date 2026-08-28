@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import * as repo from "./ticket.repository";
 import { TicketStatus, assertTransition } from "./ticket.status";
 import type { Ticket, CreateTicketInput, UpdateTicketInput } from "./ticket.types";
+import { indexResolvedTicket } from "./ticket.ai";
 
 export class TicketNotFoundError extends Error {
   constructor() {
@@ -57,5 +58,19 @@ export async function updateTicket(
     assertTransition(current.status, input.status);
   }
 
-  return repo.updateTicket(tenantId, ticketId, input);
+  const ticket = await repo.updateTicket(tenantId, ticketId, input);
+
+  if (input.status === TicketStatus.RESOLVED) {
+    try {
+      await indexResolvedTicket(ticket);
+    } catch (error) {
+      console.error("Failed to index resolved ticket", {
+        tenantId,
+        ticketId,
+        error,
+      });
+    }
+  }
+
+  return ticket;
 }

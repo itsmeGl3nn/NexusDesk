@@ -9,6 +9,7 @@ export interface Ticket {
     customerEmail: string;
     subject: string;
     description: string;
+    resolution?: string;
     status: TicketStatus;
     createdAt: string;
     updatedAt: string;
@@ -26,6 +27,7 @@ export interface UpdateTicketInput {
     customerEmail?: string;
     subject?: string;
     description?: string;
+    resolution?: string;
     status?: TicketStatus;
 }
 
