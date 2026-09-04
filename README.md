@@ -2,6 +2,8 @@
 
 > **NexusDesk** — AI-powered contact center intelligence. A serverless ticketing, call management, and customer operations platform with AI agents for auto-triage, sentiment analysis, and intelligent ticket routing.
 
+> Planning a conventional deployment instead? See the [Non-Serverless Migration Plan](NON_SERVERLESS_MIGRATION_PLAN.md).
+
 ---
 
 ## 1. Product Vision
@@ -86,7 +88,7 @@ flowchart TB
     end
 
     subgraph PYAI["🐍 AI Service (Python + FastAPI)"]
-        PYAPI[FastAPI Server<br/>localhost:8100]
+        PYAPI[FastAPI Server<br/>localhost:8000]
         TRIAGE[Auto-Triage Agent]
         SENTIMENT[Sentiment Agent]
         RESPOND[Response Agent<br/>RAG-based]
@@ -180,7 +182,7 @@ flowchart TB
 - **ChromaDB** — vector store for AI agent RAG pipeline
 
 ### 3.4 AI Layer (Python Microservice)
-- **FastAPI (Python)** — dedicated AI service running on `localhost:8100`, called by Node.js Lambdas via HTTP
+- **FastAPI (Python)** — dedicated AI service running on `localhost:8000`, called by Node.js Lambdas via HTTP
 - **Ollama** — local LLM runtime on `localhost:11434` (no cloud API, no costs, fully offline)
 - **Llama 3 8B** — free, open-weight reasoning model for triage, sentiment, response generation
 - **nomic-embed-text** — free, open embedding model for ticket similarity + RAG
@@ -253,9 +255,24 @@ flowchart TB
 | **Framework** | LangChain `OllamaEmbeddings` + `Chroma` retriever |
 | **Chunking** | LangChain `RecursiveCharacterTextSplitter` for ticket text |
 | **Indexed corpora** | (1) Resolved tickets, (2) Agent notes, (3) Knowledge base articles, (4) Call transcripts |
-| **Retrieval** | Vector similarity (cosine) → top-k=5 → rerank → LLM |
-| **Refresh** | Incremental indexing on ticket resolve/close |
+| **Retrieval** | Same-customer history first, then tenant-scoped similar resolutions as fallback |
+| **Customer identity** | Normalized `customerEmail` within `tenantId` |
+| **Isolation** | Every query is tenant-scoped; customer history excludes other customers and the current ticket |
+| **Refresh** | Incremental indexing when a ticket transitions to `RESOLVED` |
 | **Structured output** | Instructor + Pydantic models for typed responses |
+
+#### 4.4.1 Customer-Scoped AI Context
+
+AI agents receive a shared customer context instead of reasoning from the current ticket alone. The context is assembled from ChromaDB using the current ticket's `tenantId` and normalized `customerEmail`.
+
+The returned context has two intentionally separate collections:
+
+- `customer_history` — resolved tickets for the same customer in the same tenant, excluding the current ticket.
+- `similar_resolutions` — semantically similar resolved tickets from other customers in the same tenant. This is fallback knowledge and is never presented as the current customer's history.
+
+Cross-tenant results are never returned. Keeping the collections separate allows triage, sentiment, response, escalation, routing, and analytics agents to distinguish known customer experience from generic resolution patterns.
+
+When a ticket moves to `RESOLVED`, the update must include `resolution`. The backend persists the update and calls `POST /ai/resolved-tickets` to upsert the subject, description, resolution, tenant, normalized customer email, and resolution timestamp into ChromaDB. AI indexing errors are logged without rolling back an otherwise successful ticket update.
 
 ### 4.5 Infrastructure
 | Layer | Choice |
@@ -278,6 +295,7 @@ flowchart TB
 | `customerEmail` | String | |
 | `subject` | String | |
 | `description` | String | |
+| `resolution` | String (required when resolving) | |
 | `status` | String (OPEN / IN_PROGRESS / RESOLVED / CLOSED) | GSI2-PK |
 | `priority` | String (LOW / MEDIUM / HIGH / CRITICAL) | |
 | `category` | String (AI-classified) | |
@@ -334,12 +352,14 @@ flowchart TB
 
 | Agent | Input | Output | Trigger |
 |---|---|---|---|
-| **Auto-Triage** | Ticket subject + description | Priority (LOW/MED/HIGH/CRIT) + category | On ticket creation |
-| **Sentiment Analysis** | Ticket description + notes | Sentiment label + score (0–100) + frustrated flag | On ticket creation/update |
-| **Response Suggestion** | Ticket context + similar resolved tickets (RAG) | 2–3 draft response options | Agent opens ticket |
-| **Escalation Prediction** | Ticket history + sentiment trend + SLA status | Escalation risk score (0–100) + reason | Periodic (every 5 min) + on update |
-| **Smart Routing** | Ticket category + priority + agent skills + workload | Best-fit agent ID + reason | On ticket creation (after triage) |
-| **Analytics** | Natural language query | Structured answer with data | On-demand (chat) |
+| **Auto-Triage** | Current ticket + customer context | Priority (LOW/MED/HIGH/CRIT) + category | On ticket creation |
+| **Sentiment Analysis** | Current ticket + customer history | Sentiment label + score (0–100) + frustrated flag | On ticket creation/update |
+| **Response Suggestion** | Current ticket + customer history + similar resolutions | 2–3 draft response options | Agent opens ticket |
+| **Escalation Prediction** | Customer history + sentiment trend + SLA status | Escalation risk score (0–100) + reason | Periodic (every 5 min) + on update |
+| **Smart Routing** | Ticket category + customer context + agent skills + workload | Best-fit agent ID + reason | On ticket creation (after triage) |
+| **Analytics** | Natural language query + tenant/customer context when applicable | Structured answer with data | On-demand (chat) |
+
+Before agent-specific reasoning, the AI service can call the shared `POST /ai/customer-context` enrichment endpoint. This makes customer history available to all six agents through one contract rather than requiring each agent to implement its own lookup.
 
 ### 6.2 Auto-Triage Flow
 
@@ -393,13 +413,15 @@ sequenceDiagram
 ```
 Agent opens ticket
         ↓
-Embed ticket subject + description (nomic-embed-text)
+Send current ticket identity and content to POST /ai/customer-context
         ↓
-Vector search ChromaDB (top-k=5 similar resolved tickets)
+Normalize customerEmail and filter by tenantId
         ↓
-Retrieve resolution notes from matched tickets
+Retrieve same-customer resolved tickets (excluding current ticket)
         ↓
-Build prompt: "Given this ticket and these past resolutions, draft 3 responses"
+Retrieve tenant-scoped similar resolutions from other customers as fallback
+    ↓
+Build prompt with customer history and fallback resolutions in separate sections
         ↓
 LLM generates 3 response options (Llama 3)
         ↓
@@ -431,7 +453,10 @@ GET    /call/:id               # Get call detail
 # AI
 POST   /ai/triage              # Manual triage trigger
 POST   /ai/sentiment           # Analyze ticket sentiment
-POST   /ai/suggest-response    # Get draft responses (RAG)
+POST   /ai/customer-context    # Shared customer history + tenant-scoped fallback context
+POST   /ai/suggest/context     # Response-agent context compatibility endpoint
+POST   /ai/resolved-tickets    # Index a resolved ticket in customer history
+POST   /ai/suggest-response    # Get draft responses using enriched RAG context (planned)
 GET    /ai/escalation-risk/:id # Get escalation risk score
 POST   /ai/chat                # Natural language analytics query
 
@@ -547,7 +572,7 @@ backend/
 │   │   ├── callService.ts       # startCall(), logCall()
 │   │   ├── dynamodb.ts          # DynamoDB client (LocalStack / AWS auto-detect)
 │   │   ├── s3.ts                # S3 client
-│   │   └── aiClient.ts          # HTTP client → Python AI service (localhost:8100)
+│   │   └── aiClient.ts          # HTTP client → Python AI service (localhost:8000)
 │   ├── middleware/
 │   │   ├── auth.ts              # JWT verification
 │   │   ├── rbac.ts              # Role-based access control
@@ -591,12 +616,13 @@ ai-service/                          # 🐍 Python AI Microservice
 │   │   ├── rag_service.py           # RAG pipeline (embed → search → retrieve → generate)
 │   │   └── embedding_service.py     # Embedding generation + indexing
 │   ├── routers/
+│   │   ├── context.py               # POST /ai/customer-context
 │   │   ├── triage.py                # POST /ai/triage
 │   │   ├── sentiment.py             # POST /ai/sentiment
-│   │   ├── suggest.py               # POST /ai/suggest-response
+│   │   ├── suggest.py               # POST /ai/suggest/context
 │   │   ├── escalation.py            # GET /ai/escalation-risk/{id}
 │   │   ├── chat.py                  # POST /ai/chat
-│   │   └── embeddings.py            # POST /ai/embed (index new tickets)
+│   │   └── embeddings.py            # POST /ai/resolved-tickets
 │   └── prompts/
 │       ├── triage_prompt.py         # Triage system/user prompt templates
 │       ├── sentiment_prompt.py      # Sentiment analysis prompts
@@ -690,8 +716,8 @@ ai-service/                          # 🐍 Python AI Microservice
 - Pydantic schemas (`models/schemas.py`) — TriageResult, SentimentResult, ResponseSuggestion
 - Prompt templates (`prompts/`) — triage, sentiment, response, analytics
 - FastAPI routers (`routers/`) — `/ai/triage`, `/ai/sentiment`, `/ai/chat`, etc.
-- Backend `aiClient.ts` — Node.js HTTP client to call Python service at `localhost:8100`
-- Test: `curl http://localhost:8100/health` → AI service running
+- Backend AI client — Node.js HTTP client to call Python service at `localhost:8000`
+- Test: `curl http://localhost:8000/health` → AI service running
 - Test: `curl http://localhost:11434/api/tags` → Ollama models loaded
 
 ### Phase 9 — AI Agents (Python)
@@ -701,6 +727,8 @@ ai-service/                          # 🐍 Python AI Microservice
 - **Escalation Prediction Agent** (`agents/escalation_agent.py`) — flag high-risk tickets
 - **Smart Routing Agent** (`agents/routing_agent.py`) — auto-assign to best-fit agent
 - **Analytics Agent** (`agents/analytics_agent.py`) — natural language queries over data
+- Shared customer context — enrich all agents with tenant-isolated customer history before reasoning
+- Resolved-ticket indexing — persist successful resolutions with normalized customer identity for future retrieval
 - Instructor + Pydantic for structured LLM output (guaranteed JSON schemas)
 - AI chat UI in frontend (AIChatPanel component)
 - Wire Node.js Lambda AI handlers as proxies → Python service
@@ -769,7 +797,7 @@ sequenceDiagram
     participant TKT as Ticket Lambda
     participant DB as DynamoDB
     participant AI as AI Lambda (Node.js)
-    participant PY as Python AI Service<br/>(FastAPI :8100)
+    participant PY as Python AI Service<br/>(FastAPI :8000)
     participant LLM as Ollama (Llama 3)<br/>localhost:11434
     participant VEC as ChromaDB<br/>localhost:8000
     participant WS as WebSocket
@@ -799,9 +827,7 @@ sequenceDiagram
         AI->>DB: Update sentiment + escalationRisk
     end
 
-    AI->>PY: POST /ai/embed
-    PY->>LLM: ollama.embed(nomic-embed-text)
-    PY->>VEC: Store embedding
+    Note over AI,VEC: Open tickets are not added to resolved-ticket history
 
     AI->>AI: smartRoute(category, priority, agents)
     AI->>DB: Query agents (skills=billing, lowest workload)
@@ -816,21 +842,24 @@ sequenceDiagram
     TKT->>DB: Fetch ticket
     TKT-->>Agent: Ticket detail
 
-    Agent->>GW: POST /ai/suggest-response
-    GW->>AI: suggestResponse(ticket)
-    AI->>PY: POST /ai/suggest-response
-    PY->>VEC: Find 5 similar resolved tickets (LangChain retriever)
-    VEC-->>PY: Past resolutions
-    PY->>LLM: Generate 3 draft responses
+    Agent->>GW: Request response suggestion
+    GW->>AI: suggestResponse(current ticket)
+    AI->>PY: POST /ai/customer-context
+    PY->>VEC: Query tenantId + normalized customerEmail
+    VEC-->>PY: Same-customer history (excluding current ticket)
+    PY->>VEC: Query same tenant for other-customer fallback
+    VEC-->>PY: Similar resolutions (separate fallback)
+    PY->>LLM: Generate 3 drafts with enriched context
     LLM-->>PY: Response options
     PY-->>AI: ResponseSuggestion[] (Pydantic)
     AI-->>Agent: 3 suggested replies
 
-    Agent->>GW: PUT /ticket/1234 (status: RESOLVED, notes)
+    Agent->>GW: PUT /ticket/1234 (status: RESOLVED, resolution)
     GW->>TKT: updateTicket
-    TKT->>DB: Update status + notes
+    TKT->>DB: Update status + resolution
     TKT->>DB: Write audit log
-    TKT->>VEC: Re-embed resolved ticket for future RAG
+    TKT->>PY: POST /ai/resolved-tickets
+    PY->>VEC: Upsert resolution with tenant + customer metadata
 
     alt escalationRisk > 80
         AI->>WS: ⚠️ Escalation alert
