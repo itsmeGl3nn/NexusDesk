@@ -7,7 +7,7 @@ import type { CreateTicketInput } from '../../types/ticket';
 type FilterTab = 'all' | 'open' | 'in_progress';
 
 export default function TicketTable() {
-  const { tickets, selectedTicketId, selectTicket, fetchTickets, createTicket, isLoading } = useTicketStore();
+  const { tickets, selectedTicketId, selectTicket, fetchTickets, createTicket, isLoading, error } = useTicketStore();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
 
@@ -75,6 +75,9 @@ export default function TicketTable() {
         </button>
       </div>
 
+      {error && <div role="alert" className="mx-6 mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        {error} <button className="underline" onClick={() => fetchTickets()}>Retry</button>
+      </div>}
       {/* Table */}
       <div className="px-6 flex-1 overflow-auto">
         <table className="w-full">
@@ -104,7 +107,7 @@ export default function TicketTable() {
             {isLoading && tickets.length === 0 ? (
               <tr><td colSpan={4} className="py-8 text-center text-sm text-gray-400">Loading tickets…</td></tr>
             ) : filteredTickets.length === 0 ? (
-              <tr><td colSpan={4} className="py-8 text-center text-sm text-gray-400">No tickets found</td></tr>
+              <tr><td colSpan={4} className="py-8 text-center text-sm text-gray-400">{error ? "Tickets could not be loaded" : "No tickets found"}</td></tr>
             ) : (
               filteredTickets.map((ticket) => (
                 <tr

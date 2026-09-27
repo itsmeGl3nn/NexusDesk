@@ -173,6 +173,7 @@ docker-compose.override.yml
 
 # Serverless directories
 .serverless/
+.aws-sam/
 
 # FuseBox cache
 .fusebox/

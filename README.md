@@ -649,7 +649,7 @@ ai-service/                          # 🐍 Python AI Microservice
 - Docker Compose (LocalStack, Ollama, ChromaDB)
 - SAM template.yaml (Lambda + API GW + DynamoDB tables)
 - LocalStack running with Lambda, API Gateway, DynamoDB, S3
-- `sam build` + `samlocal deploy` working
+- `sam build` + `samlocal deploy` working use floci instead of localstack
 
 ### Phase 2 — Frontend Foundation
 - React 19 + TypeScript + Vite initialization

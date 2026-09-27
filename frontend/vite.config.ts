@@ -4,21 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const localstackEndpoint = env.LOCALSTACK_ENDPOINT ?? 'http://localhost:4566'
-  const apiId = env.VITE_LOCALSTACK_API_ID ?? ''
-
   return {
-    plugins: [
-      tailwindcss(),
-      react(),
-    ],
+    plugins: [tailwindcss(), react()],
     server: {
       proxy: {
         '/api': {
-          target: localstackEndpoint,
+          target: env.BACKEND_API_URL || 'http://localhost:3000',
           changeOrigin: true,
-          rewrite: (path) =>
-            path.replace(/^\/api/, `/restapis/${apiId}/dev/_user_request_`),
+          rewrite: (path) => path.replace(/^\/api/, ''),
         },
       },
     },

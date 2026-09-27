@@ -8,9 +8,9 @@ export default function Header() {
   const navigate = useNavigate();
 
   return (
-    <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
+    <header className="flex items-center justify-between min-h-16 gap-2 px-3 sm:px-6 bg-white border-b border-gray-200">
       {/* Search */}
-      <div className="relative w-full max-w-md">
+      <div className="relative hidden sm:block min-w-0 w-full max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"
@@ -20,7 +20,7 @@ export default function Header() {
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-4 ml-4">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-4 ml-auto">
         {/* Notifications */}
         <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
           <Bell className="w-5 h-5" />
@@ -38,12 +38,12 @@ export default function Header() {
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="text-sm font-medium text-gray-700">{user?.name}</span>
+          <span className="hidden md:inline text-sm font-medium text-gray-700">{user?.name}</span>
         </div>
 
         {/* Logout */}
         <button
-          onClick={() => { logout(); navigate('/login'); }}
+          onClick={() => { logout(); navigate('/login', { replace: true }); }}
           className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
         >
           <span className="flex items-center gap-1.5">

@@ -1,54 +1,43 @@
-const API_URL = import.meta.env.VITE_API_URL ?? '';
+import axios from 'axios';
+import { readSession, SESSION_EXPIRED } from './session';
 
-interface RequestOptions {
-  method?: string;
-  body?: unknown;
-  headers?: Record<string, string>;
-}
-
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
     this.name = 'ApiError';
   }
 }
 
-function getAccessToken(): string | null {
-  return localStorage.getItem('accessToken');
-}
+export const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '/api',
+  timeout: 30000,
+});
 
-async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, headers = {} } = opts;
-
-  const token = getAccessToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+apiClient.interceptors.request.use((config) => {
+  if (!config.url?.startsWith('/auth/')) {
+    const session = readSession();
+    if (session) config.headers.Authorization = `Bearer ${session.tokens.accessToken}`;
   }
+  return config;
+});
 
-  if (body) {
-    headers['Content-Type'] = 'application/json';
+apiClient.interceptors.response.use((response) => response, (error: unknown) => {
+  if (!axios.isAxiosError(error)) return Promise.reject(error);
+  const status = error.response?.status ?? 0;
+  const message = error.response?.data?.message;
+  const sentToken = error.config?.headers.Authorization;
+  if (status === 401 && sentToken && sentToken === `Bearer ${readSession()?.tokens.accessToken}`) {
+    window.dispatchEvent(new Event(SESSION_EXPIRED));
   }
-
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    const message = (data as { message?: string })?.message ?? res.statusText;
-    throw new ApiError(res.status, message);
-  }
-
-  return data as T;
-}
+  const detail = message === 'Missing Authentication Token'
+    ? 'API route unavailable. Restart the UI after deploying the backend.'
+    : typeof message === 'string' ? message
+      : status ? `Request failed (${status}).` : 'Cannot reach the API. Check that the backend is running.';
+  return Promise.reject(new ApiError(status, detail));
+});
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body: unknown) => request<T>(path, { method: 'POST', body }),
-  patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body }),
+  get: async <T>(path: string): Promise<T> => (await apiClient.get<T>(path)).data,
+  post: async <T>(path: string, body: unknown): Promise<T> => (await apiClient.post<T>(path, body)).data,
+  patch: async <T>(path: string, body: unknown): Promise<T> => (await apiClient.patch<T>(path, body)).data,
 };
-
-export { ApiError };

@@ -1,68 +1,57 @@
 import { create } from 'zustand';
 import type { User } from '../types/user';
-import { loginApi, type AuthTokens } from '../services/authService';
+import { loginApi } from '../services/authService';
+import { clearSession, readSession, saveSession } from '../services/session';
+import { useTicketStore } from './ticketStore';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
+  expiresAt: number | null;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, remember?: boolean) => Promise<void>;
   logout: () => void;
-  setUser: (user: User | null) => void;
+  syncSession: () => void;
 }
 
-function saveTokens(tokens: AuthTokens) {
-  localStorage.setItem('accessToken', tokens.accessToken);
-  localStorage.setItem('idToken', tokens.idToken);
-  localStorage.setItem('refreshToken', tokens.refreshToken);
-}
-
-function clearTokens() {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('idToken');
-  localStorage.removeItem('refreshToken');
-}
-
-function decodeUser(idToken: string): User {
-  const payload = JSON.parse(atob(idToken.split('.')[1]));
-  const groups: string[] = payload['cognito:groups'] ?? [];
-  const role = groups.includes('admin') ? 'admin' : groups.includes('supervisor') ? 'supervisor' : 'agent';
-  return {
-    id: payload.sub,
-    name: payload.email?.split('@')[0] ?? 'User',
-    email: payload.email ?? '',
-    role,
-  };
-}
-
-const storedToken = localStorage.getItem('idToken');
-const initialUser = storedToken ? decodeUser(storedToken) : null;
-
-export const useAuthStore = create<AuthState>((set) => ({
-  user: initialUser,
-  isAuthenticated: !!initialUser,
+const initial = readSession();
+let loginAttempt = 0;
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: initial?.user ?? null,
+  isAuthenticated: !!initial,
+  expiresAt: initial?.expiresAt ?? null,
   isLoading: false,
   error: null,
 
-  login: async (email, password) => {
+  login: async (email, password, remember = false) => {
+    const attempt = ++loginAttempt;
     set({ isLoading: true, error: null });
     try {
-      const tokens = await loginApi(email, password);
-      saveTokens(tokens);
-      const user = decodeUser(tokens.idToken);
-      set({ user, isAuthenticated: true, isLoading: false });
+      const tokens = await loginApi(email.trim(), password);
+      if (attempt !== loginAttempt) throw new Error('Sign-in was cancelled.');
+      const session = saveSession(tokens, remember);
+      useTicketStore.getState().reset();
+      set({ user: session.user, expiresAt: session.expiresAt, isAuthenticated: true, isLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed';
-      set({ error: message, isLoading: false });
+      if (attempt === loginAttempt) {
+        set({ error: err instanceof Error ? err.message : 'Login failed', isLoading: false });
+      }
       throw err;
     }
   },
 
   logout: () => {
-    clearTokens();
-    set({ user: null, isAuthenticated: false, error: null });
+    loginAttempt++;
+    clearSession();
+    useTicketStore.getState().reset();
+    set({ user: null, expiresAt: null, isAuthenticated: false, isLoading: false, error: null });
   },
 
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  syncSession: () => {
+    const session = readSession();
+    if (!session) { get().logout(); return; }
+    if (get().user?.id !== session.user.id) useTicketStore.getState().reset();
+    set({ user: session.user, expiresAt: session.expiresAt, isAuthenticated: true });
+  },
 }));

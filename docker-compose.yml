@@ -1,37 +1,62 @@
 services:
-  localstack:
-    image: localstack/localstack:latest
-    container_name: localstack-contact-center
+  floci:
+    image: floci/floci:latest
     ports:
-      - "4566:4566"
+      - "127.0.0.1:4566:4566"
     environment:
-      - DEBUG=1
-      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN}
-      - AWS_DEFAULT_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=localstack
-      - AWS_SECRET_ACCESS_KEY=localstack
-      - SERVICES=dynamodb,lambda,apigateway,iam,logs,sqs,sns,events,ses,cloudwatch,sts,s3,cloudformation,cloudwatch,cognito-idp
+      - FLOCI_SERVICES_DOCKER_NETWORK=nexusdesk-local
+      - FLOCI_HOSTNAME=floci
+      - FLOCI_BASE_URL=http://floci:4566
+      - FLOCI_STORAGE_MODE=hybrid
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "./localstack:/etc/localstack/init/ready.d"
+      - floci_data:/app/data
     networks:
       - contact-center-network
 
   frontend:
-    build:
-      context: ./frontend
+    profiles: [frontend]
+    image: node:22-alpine
+    working_dir: /app
     container_name: contact-center-frontend
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=/api
+      - BACKEND_API_URL=${BACKEND_API_URL:-http://host.docker.internal:3000}
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    networks:
+      - contact-center-network
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - contact-center-network
+
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      - CHROMA_PERSIST_PATH=/data
+    volumes:
+      - chroma_data:/data
     networks:
       - contact-center-network
 
 networks:
   contact-center-network:
+    name: nexusdesk-local
     driver: bridge
+
+volumes:
+  floci_data:
+  ollama_data:
+  chroma_data:

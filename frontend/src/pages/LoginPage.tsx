@@ -24,8 +24,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      await login(email, password, rememberMe);
+      navigate('/dashboard', { replace: true });
     } catch {
       // error is set in the store
     }
@@ -44,12 +44,12 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             {error && (
-              <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+              <div role="alert" className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
                 {error}
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Email Address
               </label>
               <div className="relative">
@@ -57,7 +57,7 @@ export default function LoginPage() {
                   <Mail size={18} />
                 </span>
                 <input
-                  type="email"
+                  id="email" autoComplete="username" type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -69,7 +69,7 @@ export default function LoginPage() {
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   Password
                 </label>
                 <button
@@ -84,7 +84,7 @@ export default function LoginPage() {
                   <Lock size={18} />
                 </span>
                 <input
-                  type={showPassword ? "text" : "password"}
+                  id="password" autoComplete="current-password" type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -93,6 +93,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
                 >
