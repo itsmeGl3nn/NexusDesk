@@ -33,7 +33,7 @@ esbuild.build({
   entryPoints,
   bundle: true,
   platform: 'node',
-  target: 'node18',
+  target: 'node22',
   outdir: 'dist/handlers',
   external: ['@aws-sdk/*'],
 }).then(() => {

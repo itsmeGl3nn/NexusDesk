@@ -40,4 +40,6 @@ export const api = {
   get: async <T>(path: string): Promise<T> => (await apiClient.get<T>(path)).data,
   post: async <T>(path: string, body: unknown): Promise<T> => (await apiClient.post<T>(path, body)).data,
   patch: async <T>(path: string, body: unknown): Promise<T> => (await apiClient.patch<T>(path, body)).data,
+  put: async <T>(path: string, body: unknown): Promise<T> => (await apiClient.put<T>(path, body)).data,
+  delete: async <T>(path: string): Promise<T> => (await apiClient.delete<T>(path)).data,
 };

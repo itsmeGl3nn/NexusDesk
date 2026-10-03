@@ -3,11 +3,7 @@ export interface LoginInput {
   password: string;
 }
 
-export interface SignupInput {
-  email: string;
-  password: string;
-  tenantId: string;
-}
+export type SignupInput = import("../tenant/tenant.types").RegisterTenantInput;
 
 export interface ConfirmInput {
   email: string;

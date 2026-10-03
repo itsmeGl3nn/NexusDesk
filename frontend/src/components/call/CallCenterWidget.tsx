@@ -32,9 +32,9 @@ export default function CallCenterWidget() {
             <Headphones className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Call Center</h3>
+            <h3 className="text-sm font-bold text-gray-900">Call Center (demo)</h3>
             <p className="text-xs text-gray-500">
-              Agent connected to <span className="text-orange-500">🤙</span> Amazon Connect
+              Simulated call controls
             </p>
           </div>
         </div>

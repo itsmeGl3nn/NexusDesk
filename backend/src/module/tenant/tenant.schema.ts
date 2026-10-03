@@ -1,30 +1,21 @@
+import { z } from "zod";
 import type { RegisterTenantInput } from "./tenant.types";
 
 export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ValidationError";
-  }
+  constructor(message: string) { super(message); this.name = "ValidationError"; }
 }
 
-function requireString(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new ValidationError(`${field} is required`);
-  }
-  return value.trim();
-}
+const registerTenantSchema = z.object({
+  tenantName: z.string().trim().min(1).max(200),
+  adminEmail: z.string().trim().toLowerCase().email().max(254),
+  adminPassword: z.string().min(8).max(256).regex(/[A-Z]/).regex(/[a-z]/).regex(/[0-9]/),
+  adminFirstName: z.string().trim().min(1).max(100),
+  adminLastName: z.string().trim().min(1).max(100),
+}).strict();
 
-/** Validate and normalize the public tenant-registration payload. */
 export function parseRegisterTenantInput(raw: unknown): RegisterTenantInput {
-  if (!raw || typeof raw !== "object") {
-    throw new ValidationError("Request body must be a JSON object");
-  }
-  const r = raw as Record<string, unknown>;
-  return {
-    tenantName: requireString(r.tenantName, "tenantName"),
-    adminEmail: requireString(r.adminEmail, "adminEmail"),
-    adminPassword: requireString(r.adminPassword, "adminPassword"),
-    adminFirstName: requireString(r.adminFirstName, "adminFirstName"),
-    adminLastName: requireString(r.adminLastName, "adminLastName"),
-  };
+  const parsed = registerTenantSchema.safeParse(raw);
+  if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid registration");
+  return parsed.data;
 }
+

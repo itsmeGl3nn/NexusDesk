@@ -6,9 +6,11 @@ export interface Ticket {
   customerEmail: string;
   subject: string;
   description: string;
+  resolution?: string;
   status: TicketStatus;
   createdAt: string;
   updatedAt: string;
+  assignedTo?: string;
 }
 
 export interface CreateTicketInput {
@@ -16,6 +18,7 @@ export interface CreateTicketInput {
   customerEmail: string;
   subject: string;
   description: string;
+  assignedTo?: string;
 }
 
 export interface UpdateTicketInput {
@@ -23,7 +26,12 @@ export interface UpdateTicketInput {
   customerEmail?: string;
   subject?: string;
   description?: string;
+  resolution?: string;
   status?: TicketStatus;
+  assignedTo?: string | null;
 }
+
+export interface TicketFilters { status?: TicketStatus; assignedTo?: string; }
+export interface Page<T> { items: T[]; nextToken: string | null; }
 
 

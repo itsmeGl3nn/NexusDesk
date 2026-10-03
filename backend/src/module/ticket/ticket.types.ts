@@ -10,6 +10,7 @@ export interface Ticket {
     subject: string;
     description: string;
     resolution?: string;
+    assignedTo?: string;
     status: TicketStatus;
     createdAt: string;
     updatedAt: string;
@@ -20,6 +21,7 @@ export interface CreateTicketInput {
     customerEmail: string;
     subject: string;
     description: string;
+    assignedTo?: string;
 }
 
 export interface UpdateTicketInput {
@@ -29,5 +31,18 @@ export interface UpdateTicketInput {
     description?: string;
     resolution?: string;
     status?: TicketStatus;
+    assignedTo?: string | null;
+}
+
+export interface ListTicketsInput {
+    status?: TicketStatus;
+    assignedTo?: string;
+    limit: number;
+    nextToken?: string;
+}
+
+export interface TicketPage {
+    items: Ticket[];
+    nextToken: string | null;
 }
 

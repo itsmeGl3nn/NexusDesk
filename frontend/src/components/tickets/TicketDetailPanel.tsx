@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { useTicketStore } from '../../store/ticketStore';
 import StatusBadge from './StatusBadge';
+import type { Ticket, TicketStatus, UpdateTicketInput } from '../../types/ticket';
+
+const statusLabels: Record<TicketStatus, string> = {
+  open: 'Open', in_progress: 'In progress', resolved: 'Resolved', closed: 'Closed', reopened: 'Reopened',
+};
+const transitions: Record<TicketStatus, TicketStatus[]> = {
+  open: ['in_progress'], in_progress: ['resolved', 'reopened'], resolved: ['closed', 'reopened'], reopened: ['in_progress'], closed: [],
+};
 
 export default function TicketDetailPanel() {
   const { tickets, selectedTicketId } = useTicketStore();
-  const [notes, setNotes] = useState('');
 
   const ticket = tickets.find((t) => t.ticketId === selectedTicketId);
 
@@ -15,6 +22,40 @@ export default function TicketDetailPanel() {
       </div>
     );
   }
+
+  return <TicketEditor key={ticket.ticketId} ticket={ticket} />;
+}
+
+function TicketEditor({ ticket }: { ticket: Ticket }) {
+  const updateTicket = useTicketStore((s) => s.updateTicket);
+  const [description, setDescription] = useState(ticket.description);
+  const [status, setStatus] = useState<TicketStatus>(ticket.status);
+  const [resolution, setResolution] = useState(ticket.resolution ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const input: UpdateTicketInput = { description: description.trim() };
+    if (!input.description) { setError('Description is required.'); return; }
+    if (status !== ticket.status) input.status = status;
+    if (status === 'resolved') {
+      if (!resolution.trim()) { setError('Add a resolution before resolving this ticket.'); return; }
+      input.resolution = resolution.trim();
+    }
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      await updateTicket(ticket.ticketId, input);
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ticket could not be saved. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const createdDate = new Date(ticket.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -28,11 +69,13 @@ export default function TicketDetailPanel() {
   const timeAgo = getTimeAgo(ticket.createdAt);
 
   return (
-    <div className="flex flex-col h-full p-5 overflow-auto">
+    <form onSubmit={handleSubmit} className="flex flex-col h-full p-5 overflow-auto">
       {/* Header */}
       <div className="mb-5">
-        <h2 className="text-lg font-bold text-gray-900">{ticket.ticketId}</h2>
+        <p className="text-xs text-gray-500 break-all mb-1">{ticket.ticketId}</p>
+        <h2 className="text-lg font-bold text-gray-900 break-words">{ticket.subject}</h2>
         <p className="text-sm font-medium text-gray-700">{ticket.customerName}</p>
+        <p className="text-xs text-gray-600 break-all">{ticket.customerEmail}</p>
         <p className="text-xs text-gray-500">Created {timeAgo}</p>
       </div>
 
@@ -48,27 +91,41 @@ export default function TicketDetailPanel() {
         <span className="text-xs text-gray-700">{createdDate}</span>
       </div>
 
-      {/* Notes */}
+      {error && <div role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {saved && <p role="status" className="mb-4 text-sm text-green-700">Ticket saved.</p>}
+
+      {/* Description */}
       <div className="flex-1 mb-4">
-        <h3 className="text-sm font-semibold text-gray-800 mb-2">Notes</h3>
+        <label htmlFor="ticket-description" className="block text-sm font-semibold text-gray-800 mb-2">Description</label>
         <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Add internal note..."
+          id="ticket-description"
+          required
+          disabled={saving}
+          value={description}
+          onChange={(e) => { setDescription(e.target.value); setSaved(false); }}
           className="w-full h-24 p-3 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
 
+      <div className="mb-4">
+        <label htmlFor="ticket-status" className="block text-sm font-semibold text-gray-800 mb-2">Update status</label>
+        <select id="ticket-status" disabled={saving} value={status} onChange={(e) => { setStatus(e.target.value as TicketStatus); setSaved(false); }} className="w-full rounded-lg border border-gray-200 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          {[ticket.status, ...transitions[ticket.status]].map((value) => <option key={value} value={value}>{statusLabels[value]}</option>)}
+        </select>
+      </div>
+      {status === 'resolved' && <div className="mb-4">
+        <label htmlFor="ticket-resolution" className="block text-sm font-semibold text-gray-800 mb-2">Resolution</label>
+        <textarea id="ticket-resolution" required disabled={saving} value={resolution} onChange={(e) => { setResolution(e.target.value); setSaved(false); }} className="w-full h-24 p-3 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>}
+      {status !== 'resolved' && ticket.resolution && <p className="mb-4 text-sm text-gray-600 whitespace-pre-wrap"><strong>Resolution:</strong> {ticket.resolution}</p>}
+
       {/* Actions */}
       <div className="flex gap-3">
-        <button className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-          Save
-        </button>
-        <button className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
-          Close Ticket
+        <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50">
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
       </div>
-    </div>
+    </form>
   );
 }
 

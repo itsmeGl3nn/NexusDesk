@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpDown, Plus, MoreHorizontal, X } from 'lucide-react';
+import { ArrowUpDown, Plus, X } from 'lucide-react';
 import { useTicketStore } from '../../store/ticketStore';
 import StatusBadge from './StatusBadge';
 import type { CreateTicketInput } from '../../types/ticket';
+import { useAuthStore } from '../../store/authStore';
 
 type FilterTab = 'all' | 'open' | 'in_progress';
 
 export default function TicketTable() {
-  const { tickets, selectedTicketId, selectTicket, fetchTickets, createTicket, isLoading, error } = useTicketStore();
+  const { tickets, selectedTicketId, selectTicket, fetchTickets, loadMore, nextToken, createTicket, isLoading, error } = useTicketStore();
+  const userId = useAuthStore((s) => s.user?.id);
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [mineOnly, setMineOnly] = useState(false);
 
   useEffect(() => {
-    fetchTickets();
-  }, [fetchTickets]);
+    void fetchTickets({ ...(activeTab !== 'all' ? { status: activeTab } : {}), ...(mineOnly && userId ? { assignedTo: userId } : {}) });
+  }, [fetchTickets, activeTab, mineOnly, userId]);
 
   const filteredTickets = tickets.filter((t) => {
     if (activeTab === 'open') return t.status === 'open';
@@ -40,9 +43,15 @@ export default function TicketTable() {
         <h1 className="text-2xl font-bold text-gray-900">Tickets</h1>
       </div>
 
+      <label className="mx-6 mb-3 flex items-center gap-2 text-sm text-gray-600">
+        <input type="checkbox" checked={mineOnly} onChange={(event) => setMineOnly(event.target.checked)} />
+        Assigned to me
+        <span className="ml-auto text-xs">{tickets.length} loaded{nextToken ? ' · more available' : ''}</span>
+      </label>
+
       {/* Tabs and actions */}
-      <div className="px-6 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+      <div className="px-4 sm:px-6 pb-4 flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-1 bg-gray-100 rounded-lg p-1">
           {tabs.map((tab) => (
             <button
               key={tab.key}
@@ -61,9 +70,6 @@ export default function TicketTable() {
               </span>
             </button>
           ))}
-          <button className="p-1.5 text-gray-400 hover:text-gray-600">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
         </div>
 
         <button
@@ -76,11 +82,11 @@ export default function TicketTable() {
       </div>
 
       {error && <div role="alert" className="mx-6 mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-        {error} <button className="underline" onClick={() => fetchTickets()}>Retry</button>
+        {error} <button className="underline" disabled={isLoading} onClick={() => fetchTickets(useTicketStore.getState().filters)}>Retry</button>
       </div>}
       {/* Table */}
-      <div className="px-6 flex-1 overflow-auto">
-        <table className="w-full">
+      <div className="px-4 sm:px-6 flex-1 overflow-auto">
+        <table className="w-full min-w-[28rem]">
           <thead>
             <tr className="border-b border-gray-200">
               <th className="text-left py-3 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -119,7 +125,7 @@ export default function TicketTable() {
                       : 'hover:bg-gray-50'
                   }`}
                 >
-                  <td className="py-3.5 px-3 text-sm font-medium text-gray-900">{ticket.ticketId}</td>
+                  <td className="py-3.5 px-3 text-sm font-medium text-gray-900"><button aria-label={`View ticket ${ticket.ticketId}`} onClick={() => selectTicket(ticket.ticketId)} className="text-left underline decoration-transparent hover:decoration-current focus-visible:outline-2 focus-visible:outline-blue-500">{ticket.ticketId}</button></td>
                   <td className="py-3.5 px-3 text-sm text-gray-700">{ticket.customerName}</td>
                   <td className="py-3.5 px-3 text-sm text-gray-600 max-w-[200px] truncate">{ticket.subject}</td>
                   <td className="py-3.5 px-3">
@@ -131,6 +137,8 @@ export default function TicketTable() {
           </tbody>
         </table>
       </div>
+
+      {nextToken && <div className="p-4 text-center"><button disabled={isLoading} onClick={() => void loadMore()} className="rounded-lg border border-gray-300 px-4 py-2 text-sm disabled:opacity-50">{isLoading ? 'Loading…' : 'Load more tickets'}</button></div>}
 
       {/* Create Ticket Modal */}
       {showCreateForm && (
@@ -167,32 +175,32 @@ function CreateTicketModal({ onClose, onSubmit }: { onClose: () => void; onSubmi
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="create-ticket-title" className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Create Ticket</h2>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <h2 id="create-ticket-title" className="text-lg font-semibold text-gray-900">Create Ticket</h2>
+          <button aria-label="Close create ticket form" disabled={submitting} onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
+          {error && <div role="alert" className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
-            <input required value={form.customerName} onChange={set('customerName')} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+            <label htmlFor="new-customer-name" className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+            <input id="new-customer-name" autoComplete="name" required disabled={submitting} value={form.customerName} onChange={set('customerName')} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer Email</label>
-            <input required type="email" value={form.customerEmail} onChange={set('customerEmail')} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+            <label htmlFor="new-customer-email" className="block text-sm font-medium text-gray-700 mb-1">Customer Email</label>
+            <input id="new-customer-email" autoComplete="email" required disabled={submitting} type="email" value={form.customerEmail} onChange={set('customerEmail')} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-            <input required value={form.subject} onChange={set('subject')} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+            <label htmlFor="new-ticket-subject" className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+            <input id="new-ticket-subject" required disabled={submitting} value={form.subject} onChange={set('subject')} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea required value={form.description} onChange={set('description')} rows={3} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none" />
+            <label htmlFor="new-ticket-description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea id="new-ticket-description" required disabled={submitting} value={form.description} onChange={set('description')} rows={3} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none" />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
+            <button type="button" disabled={submitting} onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Cancel</button>
             <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50">{submitting ? 'Creating…' : 'Create'}</button>
           </div>
         </form>

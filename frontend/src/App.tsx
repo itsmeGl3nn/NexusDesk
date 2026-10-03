@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import TicketsPage from './pages/TicketsPage'
+import ContactPage from './pages/ContactPage'
 import DashboardLayout from './components/layout/DashboardLayout'
 import { useAuthStore } from './store/authStore'
 
@@ -36,6 +37,7 @@ function App() {
       <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/calls" element={<DashboardPage />} />
         <Route path="/customers" element={<DashboardPage />} />
         <Route path="/analytics" element={<DashboardPage />} />

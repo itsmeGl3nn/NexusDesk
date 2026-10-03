@@ -1,10 +1,13 @@
+import { useEffect } from 'react';
 import { Ticket, Phone, Users, Clock, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useTicketStore } from '../store/ticketStore';
 import { useAuthStore } from '../store/authStore';
 
 export default function DashboardPage() {
-  const tickets = useTicketStore((s) => s.tickets);
+  const { tickets, fetchTickets, loadMore, nextToken, isLoading, error } = useTicketStore();
   const user = useAuthStore((s) => s.user);
+
+  useEffect(() => { void fetchTickets(); }, [fetchTickets]);
 
   const openCount = tickets.filter((t) => t.status === 'open').length;
   const inProgressCount = tickets.filter((t) => t.status === 'in_progress').length;
@@ -15,8 +18,8 @@ export default function DashboardPage() {
   const stats = [
     { label: 'Open Tickets', value: openCount, icon: Ticket, color: 'bg-orange-50 text-orange-600', iconBg: 'bg-orange-100' },
     { label: 'In Progress', value: inProgressCount, icon: Clock, color: 'bg-blue-50 text-blue-600', iconBg: 'bg-blue-100' },
-    { label: 'Resolved Today', value: resolvedCount, icon: TrendingUp, color: 'bg-green-50 text-green-600', iconBg: 'bg-green-100' },
-    { label: 'Active Calls', value: 2, icon: Phone, color: 'bg-purple-50 text-purple-600', iconBg: 'bg-purple-100' },
+    { label: 'Resolved Tickets', value: resolvedCount, icon: TrendingUp, color: 'bg-green-50 text-green-600', iconBg: 'bg-green-100' },
+    { label: 'Active Calls (demo)', value: 2, icon: Phone, color: 'bg-purple-50 text-purple-600', iconBg: 'bg-purple-100' },
   ];
 
   return (
@@ -31,6 +34,11 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {isLoading && <p role="status" className="text-sm text-gray-500">Loading tickets…</p>}
+      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        {error} <button className="underline" disabled={isLoading} onClick={() => void fetchTickets()}>Retry</button>
+      </div>}
+
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
@@ -38,7 +46,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium opacity-80">{stat.label}</p>
-                <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                <p className="text-2xl font-bold mt-1">{stat.icon !== Phone && (isLoading || error) && tickets.length === 0 ? '—' : stat.value}</p>
               </div>
               <div className={`w-10 h-10 rounded-lg ${stat.iconBg} flex items-center justify-center`}>
                 <stat.icon className="w-5 h-5" />
@@ -53,7 +61,7 @@ export default function DashboardPage() {
         <div className="bg-white border border-gray-200 rounded-xl p-5">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-600" />
-            Team Overview
+            Team Overview (demo)
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-gray-50 rounded-lg">
@@ -76,6 +84,7 @@ export default function DashboardPage() {
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
         <div className="space-y-3">
+          {!isLoading && !error && tickets.length === 0 && <p className="text-sm text-gray-500">No tickets yet. Create a ticket to get started.</p>}
           {tickets.slice(0, 4).map((ticket) => (
             <div key={ticket.ticketId} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
               <div className="flex items-center gap-3">

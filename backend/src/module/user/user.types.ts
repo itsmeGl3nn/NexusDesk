@@ -4,6 +4,7 @@ export interface User {
   PK: string;           // TENANT#<tenantId>
   SK: string;           // USER#<userId>
   userId: string;
+  cognitoSub: string;
   tenantId: string;
   email: string;
   firstName: string;

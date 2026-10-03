@@ -13,12 +13,14 @@ Conditions:
 
 Globals:
   Function:
-    Runtime: nodejs18.x
-    Timeout: 10
+    Runtime: nodejs22.x
+    Timeout: 30
     MemorySize: 128
     Environment:
       Variables:
         AWS_ENDPOINT: !Ref AwsEndpoint
+        IS_LOCAL: !If [IsLocal, 'true', 'false']
+        TABLE_NAME: !Ref TicketsTable
         USERS_TABLE: !Ref UsersTable
         TICKETS_TABLE: !Ref TicketsTable
         CALLS_TABLE: !Ref CallsTable
@@ -177,6 +179,8 @@ Resources:
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
       PreventUserExistenceErrors: ENABLED
+      ReadAttributes: [email, name, 'custom:tenantId']
+      WriteAttributes: [name]
 
   CognitoAdminGroup:
     Type: AWS::Cognito::UserPoolGroup
@@ -219,6 +223,7 @@ Resources:
               - dynamodb:UpdateItem
               - dynamodb:DeleteItem
               - dynamodb:Query
+              - dynamodb:TransactWriteItems
             Resource:
               - !GetAtt UsersTable.Arn
               - !GetAtt TicketsTable.Arn
@@ -313,6 +318,66 @@ Resources:
           Properties:
             Path: /me
             Method: get
+
+  CreateTicketFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: CreateTicketFunction
+      CodeUri: ../backend/dist/handlers
+      Handler: ticket.createTicket
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /tickets
+            Method: post
+
+  ListTicketsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ListTicketsFunction
+      CodeUri: ../backend/dist/handlers
+      Handler: ticket.listTickets
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /tickets
+            Method: get
+
+  GetTicketFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GetTicketFunction
+      CodeUri: ../backend/dist/handlers
+      Handler: ticket.getTicket
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /tickets/{ticketId}
+            Method: get
+
+  UpdateTicketFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: UpdateTicketFunction
+      CodeUri: ../backend/dist/handlers
+      Handler: ticket.updateTicket
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /tickets/{ticketId}
+            Method: patch
 
   # ============================================================
   # Auth Lambda Functions (public — no Cognito authorizer)

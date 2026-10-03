@@ -17,6 +17,7 @@ interface AuthState {
 
 const initial = readSession();
 let loginAttempt = 0;
+let activeToken = initial?.tokens.accessToken;
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: initial?.user ?? null,
   isAuthenticated: !!initial,
@@ -31,6 +32,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const tokens = await loginApi(email.trim(), password);
       if (attempt !== loginAttempt) throw new Error('Sign-in was cancelled.');
       const session = saveSession(tokens, remember);
+      activeToken = session.tokens.accessToken;
       useTicketStore.getState().reset();
       set({ user: session.user, expiresAt: session.expiresAt, isAuthenticated: true, isLoading: false });
     } catch (err) {
@@ -43,6 +45,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: () => {
     loginAttempt++;
+    activeToken = undefined;
     clearSession();
     useTicketStore.getState().reset();
     set({ user: null, expiresAt: null, isAuthenticated: false, isLoading: false, error: null });
@@ -51,7 +54,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   syncSession: () => {
     const session = readSession();
     if (!session) { get().logout(); return; }
-    if (get().user?.id !== session.user.id) useTicketStore.getState().reset();
+    if (activeToken !== session.tokens.accessToken) {
+      loginAttempt++;
+      activeToken = session.tokens.accessToken;
+      useTicketStore.getState().reset();
+      set({ isLoading: false, error: null });
+    }
     set({ user: session.user, expiresAt: session.expiresAt, isAuthenticated: true });
   },
 }));

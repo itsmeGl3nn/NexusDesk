@@ -1,82 +1,73 @@
 import type { APIGatewayProxyResult } from "aws-lambda";
 import { authorize, type AuthenticatedEvent } from "../../core/auth/authorize";
 import { getTenantId } from "../../core/auth/getTenantId";
+import { successResponse, errorResponse } from "../../utils/response";
 import * as ticketService from "./ticket.service";
-import { TicketNotFoundError } from "./ticket.service";
 import {
-  parseCreateTicketInput,
-  parseUpdateTicketInput,
-  ValidationError,
+  parseCreateTicketInput, parseUpdateTicketInput, parseListTicketsInput,
+  parseInput, ticketIdSchema, ValidationError,
 } from "./ticket.schema";
-
-function json(statusCode: number, body: unknown): APIGatewayProxyResult {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  };
-}
 
 function parseBody(event: AuthenticatedEvent): unknown {
   if (!event.body) throw new ValidationError("Request body is required");
   try {
-    return JSON.parse(event.body);
+    return JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body);
   } catch {
     throw new ValidationError("Invalid JSON body");
   }
 }
 
-/** POST /tickets — Any authenticated user */
-export const createTicket = authorize(async (event: AuthenticatedEvent) => {
-  const tenantId = getTenantId(event);
+function parseTicketId(event: AuthenticatedEvent): string {
+  return parseInput(ticketIdSchema, event.pathParameters?.id ?? event.pathParameters?.ticketId);
+}
+
+async function handleTicketRequest(action: () => Promise<APIGatewayProxyResult>): Promise<APIGatewayProxyResult> {
   try {
-    const input = parseCreateTicketInput(parseBody(event));
-    const ticket = await ticketService.createTicket(tenantId, input);
-    return json(201, ticket);
-  } catch (err) {
-    if (err instanceof ValidationError) return json(400, { message: err.message });
-    throw err;
-  }
-});
-
-/** GET /tickets — Any authenticated user */
-export const listTickets = authorize(async (event: AuthenticatedEvent) => {
-  const tenantId = getTenantId(event);
-  const tickets = await ticketService.listTickets(tenantId);
-  return json(200, tickets);
-});
-
-/** GET /tickets/{ticketId} — Any authenticated user */
-export const getTicket = authorize(async (event: AuthenticatedEvent) => {
-  const tenantId = getTenantId(event);
-  const ticketId = event.pathParameters?.ticketId;
-  if (!ticketId) return json(400, { message: "ticketId path parameter is required" });
-
-  const ticket = await ticketService.getTicket(tenantId, ticketId);
-  if (!ticket) return json(404, { message: "Ticket not found" });
-
-  return json(200, ticket);
-});
-
-/** PATCH /tickets/{ticketId} — Any authenticated user */
-export const updateTicket = authorize(async (event: AuthenticatedEvent) => {
-  const tenantId = getTenantId(event);
-  const ticketId = event.pathParameters?.ticketId;
-  if (!ticketId) return json(400, { message: "ticketId path parameter is required" });
-
-  try {
-    const input = parseUpdateTicketInput(parseBody(event));
-    const updated = await ticketService.updateTicket(tenantId, ticketId, input);
-    return json(200, updated);
-  } catch (err: unknown) {
-    if (err instanceof ValidationError) return json(400, { message: err.message });
-    if (err instanceof TicketNotFoundError) return json(404, { message: "Ticket not found" });
-    if (err instanceof Error && err.name === "ConditionalCheckFailedException") {
-      return json(404, { message: "Ticket not found" });
+    return await action();
+  } catch (error) {
+    if (error instanceof ValidationError) return errorResponse(400, error.message);
+    if (error instanceof ticketService.TicketNotFoundError) return errorResponse(404, error.message);
+    if (error instanceof ticketService.TicketConflictError) return errorResponse(409, error.message);
+    if (error instanceof ticketService.AssignmentPermissionError) return errorResponse(403, error.message);
+    if (error instanceof Error && error.message.startsWith("Invalid ticket status transition")) {
+      return errorResponse(409, error.message);
     }
-    if (err instanceof Error && err.message.startsWith("Invalid ticket status transition")) {
-      return json(409, { message: err.message });
-    }
-    throw err;
+    throw error;
   }
-});
+}
+
+/** POST /ticket */
+export const createTicketHandler = authorize((event: AuthenticatedEvent) => handleTicketRequest(async () => {
+  const ticket = await ticketService.createTicket(getTenantId(event), parseCreateTicketInput(parseBody(event)), event.auth.sub, event.auth.role);
+  return successResponse(ticket, 201);
+}), "ticket:create");
+
+/** GET /tickets */
+export const getTicketsHandler = authorize((event: AuthenticatedEvent) => handleTicketRequest(async () => {
+  const input = parseListTicketsInput(event.queryStringParameters ?? {});
+  return successResponse(await ticketService.listTickets(getTenantId(event), input));
+}), "ticket:read");
+
+/** GET /ticket/{id} */
+export const getTicketHandler = authorize((event: AuthenticatedEvent) => handleTicketRequest(async () => {
+  const ticket = await ticketService.getTicket(getTenantId(event), parseTicketId(event));
+  return ticket ? successResponse(ticket) : errorResponse(404, "Ticket not found");
+}), "ticket:read");
+
+/** PUT /ticket/{id} */
+export const updateTicketHandler = authorize((event: AuthenticatedEvent) => handleTicketRequest(async () => {
+  const ticket = await ticketService.updateTicket(getTenantId(event), parseTicketId(event), parseUpdateTicketInput(parseBody(event)), event.auth.sub, event.auth.role);
+  return successResponse(ticket);
+}), "ticket:update");
+
+/** DELETE /ticket/{id} */
+export const deleteTicketHandler = authorize((event: AuthenticatedEvent) => handleTicketRequest(async () => {
+  await ticketService.deleteTicket(getTenantId(event), parseTicketId(event), event.auth.sub);
+  return successResponse({ message: "Ticket deleted" });
+}), "ticket:delete");
+
+// Keep deployed legacy route handlers working while clients migrate.
+export const createTicket = createTicketHandler;
+export const listTickets = getTicketsHandler;
+export const getTicket = getTicketHandler;
+export const updateTicket = updateTicketHandler;

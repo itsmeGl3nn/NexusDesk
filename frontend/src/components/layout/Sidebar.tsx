@@ -8,12 +8,14 @@ import {
   Settings,
   ChevronDown,
   Headphones,
+  Mail,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/tickets', icon: Ticket, label: 'Tickets' },
+  { to: '/contact', icon: Mail, label: 'Contact Support' },
   { to: '/calls', icon: Phone, label: 'Calls' },
   { to: '/customers', icon: Users, label: 'Customers' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
@@ -25,7 +27,7 @@ export default function Sidebar() {
   return (
     <aside className="flex flex-col w-16 md:w-60 shrink-0 bg-white border-r border-gray-200 h-screen">
       {/* Logo */}
-      <div className="flex items-center gap-2 px-5 py-5 border-b border-gray-100">
+      <div className="flex items-center justify-center md:justify-start gap-2 px-3 md:px-5 py-5 border-b border-gray-100">
         <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-teal-400">
           <Headphones className="w-5 h-5 text-white" />
         </div>
@@ -33,20 +35,20 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-2 md:px-3 py-4 space-y-1">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to} aria-label={label} title={label}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              `flex items-center justify-center md:justify-start gap-3 px-2 md:px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600 -ml-0.5 pl-2.5'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`
             }
           >
-            <Icon className="w-5 h-5" />
+            <Icon className="w-5 h-5 shrink-0" />
             <span className="hidden md:inline">{label}</span>
           </NavLink>
         ))}

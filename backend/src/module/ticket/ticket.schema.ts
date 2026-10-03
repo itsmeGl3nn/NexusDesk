@@ -1,5 +1,6 @@
+import { z } from "zod";
 import { TicketStatus } from "./ticket.status";
-import type { CreateTicketInput, UpdateTicketInput } from "./ticket.types";
+import type { CreateTicketInput, ListTicketsInput, UpdateTicketInput } from "./ticket.types";
 
 export class ValidationError extends Error {
   constructor(message: string) {
@@ -8,70 +9,55 @@ export class ValidationError extends Error {
   }
 }
 
-const VALID_STATUSES: string[] = Object.values(TicketStatus);
+const text = (max: number) => z.string().trim().min(1).max(max);
+export const ticketStatusSchema = z.enum(TicketStatus);
+export const ticketIdSchema = z.string().uuid();
 
-function requireString(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new ValidationError(`${field} is required`);
-  }
-  return value.trim();
-}
+export const createTicketSchema = z.object({
+  customerName: text(200),
+  customerEmail: text(254).email(),
+  subject: text(200),
+  description: text(10000),
+  assignedTo: text(128).optional(),
+}).strict();
 
-function optionalString(value: unknown, field: string): string | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new ValidationError(`${field} must be a non-empty string`);
+export const updateTicketSchema = createTicketSchema.partial().extend({
+  status: ticketStatusSchema.optional(),
+  resolution: text(10000).optional(),
+  assignedTo: text(128).nullable().optional(),
+}).strict().refine((input) => Object.keys(input).length > 0, {
+  message: "At least one ticket field is required",
+}).refine((input) => input.status !== TicketStatus.RESOLVED || Boolean(input.resolution), {
+  path: ["resolution"],
+  message: "resolution is required when status is resolved",
+});
+
+export const listTicketsSchema = z.object({
+  status: ticketStatusSchema.optional(),
+  assignedTo: text(128).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  nextToken: text(4096).optional(),
+}).strict();
+
+export function parseInput<T>(schema: z.ZodType<T>, raw: unknown): T {
+  const result = schema.safeParse(raw);
+  if (!result.success) {
+    throw new ValidationError(result.error.issues.map((issue) =>
+      `${issue.path.join(".") || "input"}: ${issue.message}`).join("; "));
   }
-  return value.trim();
+  return result.data;
 }
 
 export function parseCreateTicketInput(raw: unknown): CreateTicketInput {
-  if (!raw || typeof raw !== "object") {
-    throw new ValidationError("Request body must be a JSON object");
-  }
-  const r = raw as Record<string, unknown>;
-  return {
-    customerName: requireString(r.customerName, "customerName"),
-    customerEmail: requireString(r.customerEmail, "customerEmail"),
-    subject: requireString(r.subject, "subject"),
-    description: requireString(r.description, "description"),
-  };
+  return parseInput(createTicketSchema, raw) as CreateTicketInput;
 }
 
 export function parseUpdateTicketInput(raw: unknown): UpdateTicketInput {
-  if (!raw || typeof raw !== "object") {
-    throw new ValidationError("Request body must be a JSON object");
-  }
-  const r = raw as Record<string, unknown>;
-  const input: UpdateTicketInput = {};
+  return parseInput(updateTicketSchema, raw) as UpdateTicketInput;
+}
 
-  const customerName = optionalString(r.customerName, "customerName");
-  if (customerName !== undefined) input.customerName = customerName;
-
-  const customerEmail = optionalString(r.customerEmail, "customerEmail");
-  if (customerEmail !== undefined) input.customerEmail = customerEmail;
-
-  const subject = optionalString(r.subject, "subject");
-  if (subject !== undefined) input.subject = subject;
-
-  const description = optionalString(r.description, "description");
-  if (description !== undefined) input.description = description;
-
-  const resolution = optionalString(r.resolution, "resolution");
-  if (resolution !== undefined) input.resolution = resolution;
-
-  if (r.status !== undefined) {
-    if (typeof r.status !== "string" || !VALID_STATUSES.includes(r.status)) {
-      throw new ValidationError(`status must be one of: ${VALID_STATUSES.join(", ")}`);
-    }
-    input.status = r.status as TicketStatus;
-  }
-
-  if (input.status === TicketStatus.RESOLVED && input.resolution === undefined) {
-    throw new ValidationError("resolution is required when status is resolved");
-  }
-
-  return input;
+export function parseListTicketsInput(raw: unknown): ListTicketsInput {
+  return parseInput(listTicketsSchema, raw) as ListTicketsInput;
 }
 
 

@@ -36,11 +36,13 @@ export function clearSession() {
 }
 
 export function readSession() {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY) ?? localStorage.getItem(SESSION_KEY);
-    if (raw) return sessionFromTokens(JSON.parse(raw));
-  } catch { /* Malformed or expired browser storage must not crash the app. */ }
-  clearSession();
+  for (const storage of [sessionStorage, localStorage]) {
+    try {
+      const raw = storage.getItem(SESSION_KEY);
+      if (raw) return sessionFromTokens(JSON.parse(raw));
+    } catch { /* Discard only the invalid record; another storage may hold a newer session. */ }
+    for (const key of [SESSION_KEY, 'accessToken', 'idToken', 'refreshToken']) storage.removeItem(key);
+  }
   return null;
 }
 
