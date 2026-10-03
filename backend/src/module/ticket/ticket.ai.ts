@@ -7,6 +7,7 @@ export async function indexResolvedTicket(ticket: Ticket): Promise<void> {
 
   const response = await fetch(`${AI_SERVICE_URL}/ai/resolved-tickets`, {
     method: "POST",
+    signal: AbortSignal.timeout(3000),
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       tenant_id: ticket.tenantId,
