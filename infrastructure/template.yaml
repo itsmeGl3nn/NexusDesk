@@ -39,6 +39,8 @@ Resources:
     Properties:
       CodeUri: ../backend/dist/handlers
       Handler: ping.handler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
       Events:
         Api:
           Type: Api
@@ -231,6 +233,20 @@ Resources:
               - !GetAtt LogsTable.Arn
               - !GetAtt TenantsTable.Arn
 
+  CognitoProvisionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - cognito-idp:AdminCreateUser
+              - cognito-idp:AdminSetUserPassword
+              - cognito-idp:AdminAddUserToGroup
+              - cognito-idp:AdminDeleteUser
+            Resource: !GetAtt CognitoUserPool.Arn
+
   # ============================================================
   # Lambda Functions
   # ============================================================
@@ -244,6 +260,7 @@ Resources:
         - x86_64
       Policies:
         - !Ref DynamoDBCrudPolicy
+        - !Ref CognitoProvisionPolicy
       Events:
         Api:
           Type: Api
@@ -333,6 +350,11 @@ Resources:
           Properties:
             Path: /tickets
             Method: post
+        Singular:
+          Type: Api
+          Properties:
+            Path: /ticket
+            Method: post
 
   ListTicketsFunction:
     Type: AWS::Serverless::Function
@@ -363,6 +385,11 @@ Resources:
           Properties:
             Path: /tickets/{ticketId}
             Method: get
+        Singular:
+          Type: Api
+          Properties:
+            Path: /ticket/{id}
+            Method: get
 
   UpdateTicketFunction:
     Type: AWS::Serverless::Function
@@ -378,6 +405,180 @@ Resources:
           Properties:
             Path: /tickets/{ticketId}
             Method: patch
+        Singular:
+          Type: Api
+          Properties:
+            Path: /ticket/{id}
+            Method: put
+
+  DeleteTicketFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: ticket.deleteTicketHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /ticket/{id}
+            Method: delete
+
+  StartCallFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: call.startCallHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /call
+            Method: post
+
+  ListCallsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: call.listCallsHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /calls
+            Method: get
+
+  UpdateCallFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: call.updateCallHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /call/{id}
+            Method: put
+
+  CreateNoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: log.createNoteHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /notes
+            Method: post
+
+  ListNotesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: log.listNotesHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /notes
+            Method: get
+
+  UpdateNoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: log.updateNoteHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /notes/{id}
+            Method: put
+
+  DeleteNoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: log.deleteNoteHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /notes/{id}
+            Method: delete
+
+  ListLogsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: log.getLogsHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /logs
+            Method: get
+
+  AuditLogFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: log.auditLogHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /logs
+            Method: post
+
+  LogoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: auth.logoutHandler
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth/logout
+            Method: post
+
+  RegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/dist/handlers
+      Handler: auth.register
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+        - !Ref CognitoProvisionPolicy
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /auth/register
+            Method: post
 
   # ============================================================
   # Auth Lambda Functions (public — no Cognito authorizer)
@@ -388,6 +589,8 @@ Resources:
       FunctionName: LoginFunction
       CodeUri: ../backend/dist/handlers
       Handler: auth.login
+      Policies:
+        - !Ref DynamoDBCrudPolicy
       Architectures:
         - x86_64
       Events:
@@ -403,6 +606,9 @@ Resources:
       FunctionName: SignupFunction
       CodeUri: ../backend/dist/handlers
       Handler: auth.signup
+      Policies:
+        - !Ref DynamoDBCrudPolicy
+        - !Ref CognitoProvisionPolicy
       Architectures:
         - x86_64
       Events:
@@ -418,6 +624,8 @@ Resources:
       FunctionName: ConfirmSignupFunction
       CodeUri: ../backend/dist/handlers
       Handler: auth.confirmSignup
+      Policies:
+        - !Ref DynamoDBCrudPolicy
       Architectures:
         - x86_64
       Events:
@@ -433,6 +641,8 @@ Resources:
       FunctionName: RefreshTokenFunction
       CodeUri: ../backend/dist/handlers
       Handler: auth.refresh
+      Policies:
+        - !Ref DynamoDBCrudPolicy
       Architectures:
         - x86_64
       Events:
@@ -455,13 +665,7 @@ Resources:
         - x86_64
       Policies:
         - !Ref DynamoDBCrudPolicy
-        - Statement:
-            - Effect: Allow
-              Action:
-                - cognito-idp:AdminCreateUser
-                - cognito-idp:AdminSetUserPassword
-                - cognito-idp:AdminAddUserToGroup
-              Resource: !GetAtt CognitoUserPool.Arn
+        - !Ref CognitoProvisionPolicy
       Events:
         Api:
           Type: Api

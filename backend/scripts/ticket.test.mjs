@@ -26,8 +26,8 @@ globalThis.__ticketTestDocClient = {
   async send(command) {
     const input = command.input;
     commands.push(input);
-    if (command.constructor.name === 'GetCommand') return { Item: clone(records(input.TableName).get(key(input.Key))) };
-    if (command.constructor.name === 'QueryCommand') {
+    if (input.Key) return { Item: clone(records(input.TableName).get(key(input.Key))) };
+    if (input.KeyConditionExpression) {
       const all = [...records(input.TableName).values()].filter((item) =>
         item.PK === input.ExpressionAttributeValues[':pk'] && item.SK.startsWith('TICKET#'))
         .sort((a, b) => a.SK.localeCompare(b.SK));
@@ -39,7 +39,7 @@ globalThis.__ticketTestDocClient = {
       const last = evaluated.at(-1);
       return { Items: clone(items), ...(last && offset + evaluated.length < all.length && { LastEvaluatedKey: { PK: last.PK, SK: last.SK } }) };
     }
-    assert.equal(command.constructor.name, 'TransactWriteCommand');
+    assert.ok(input.TransactItems);
     assert.equal(input.TransactItems.length, 2, 'Each mutation and audit log share one transaction');
     if (rejectAuditWrite) throw cancelled(1);
     const mutation = input.TransactItems[0].Put ?? input.TransactItems[0].Delete;

@@ -1,4 +1,6 @@
 import type { Role } from "../../core/auth/roles";
+import type { z } from "zod";
+import type { updateUserSchema } from "./user.schema";
 
 export interface User {
   PK: string;           // TENANT#<tenantId>
@@ -22,9 +24,4 @@ export interface CreateUserInput {
   role: Role;
 }
 
-export interface UpdateUserInput {
-  firstName?: string;
-  lastName?: string;
-  role?: Role;
-  status?: "active" | "inactive";
-}
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

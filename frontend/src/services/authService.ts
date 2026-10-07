@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, apiClient } from './api';
 
 export interface AuthTokens {
   accessToken: string;
@@ -13,4 +13,8 @@ export function loginApi(email: string, password: string): Promise<AuthTokens> {
 
 export function refreshApi(refreshToken: string): Promise<AuthTokens> {
   return api.post<AuthTokens>('/auth/refresh', { refreshToken });
+}
+
+export async function logoutApi(accessToken: string): Promise<void> {
+  await apiClient.post('/auth/logout', {}, { headers: { Authorization: `Bearer ${accessToken}` } });
 }

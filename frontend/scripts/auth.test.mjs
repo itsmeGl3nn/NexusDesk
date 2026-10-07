@@ -54,8 +54,8 @@ try {
   const savedTicket = { ...originalTicket, description: 'Saved description', status: 'IN_PROGRESS' };
   tickets.setState({ tickets: [originalTicket, untouchedTicket] });
   apiClient.defaults.adapter = async (config) => {
-    assert.equal(config.method, 'patch');
-    assert.equal(config.url, '/tickets/save-ticket');
+    assert.equal(config.method, 'put');
+    assert.equal(config.url, '/ticket/save-ticket');
     return response(config, savedTicket);
   };
   await tickets.getState().updateTicket(originalTicket.ticketId, { description: savedTicket.description, status: savedTicket.status });
@@ -147,6 +147,25 @@ try {
     throw { isAxiosError: true, config, response: { status: 403, data: { message: 'Missing Authentication Token' } } };
   };
   await assert.rejects(api.get('/tickets'), /API route unavailable/);
+  saveSession(tokens, true);
+  auth.getState().syncSession();
+  apiClient.defaults.adapter = async (config) => {
+    assert.equal(config.url, '/auth/logout');
+    assert.equal(config.headers.Authorization, `Bearer ${tokens.accessToken}`);
+    return response(config, { message: 'Signed out' });
+  };
+  await auth.getState().signOut();
+  assert.equal(readSession(), null);
+  saveSession(tokens, true);
+  auth.getState().syncSession();
+  apiClient.defaults.adapter = (config) => new Promise((resolve) => { release = () => resolve(response(config, {})); });
+  const pendingLogout = auth.getState().signOut();
+  await new Promise(setImmediate);
+  saveSession(newerTokens, true);
+  auth.getState().syncSession();
+  release();
+  await pendingLogout;
+  assert.equal(readSession().tokens.accessToken, newerTokens.accessToken, 'Old logout must not clear a new session');
   console.log('PASS: stored-session recovery, Unicode, remember me, request auth, ticket saves, logout, same-user session changes, late login/data responses, stale/current 401 and route errors');
 } finally {
   await rm(directory, { recursive: true, force: true });

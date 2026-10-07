@@ -20,7 +20,7 @@ function route(permission: Permission, handler: (event: AuthenticatedEvent) => P
 
 function body(event: AuthenticatedEvent): unknown {
   if (!event.body) throw new ResourceError(400, "Request body is required");
-  return JSON.parse(event.body);
+  return JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body);
 }
 function noteId(event: AuthenticatedEvent): string {
   return z.string().trim().min(1).max(128).parse(event.pathParameters?.id ?? event.pathParameters?.noteId);
@@ -55,8 +55,9 @@ const auditSchema = z.object({
 /** Manual events are labeled separately; actor and tenant always come from authentication. */
 export const auditLogHandler = route("audit:write", async (event) => {
   const input = auditSchema.parse(body(event));
-  return successResponse(await auditWrite({ ...input, action: `manual.${input.action}`,
+  const { details, ...fields } = input;
+  return successResponse(await auditWrite({ ...fields, action: `manual.${input.action}`,
     tenantId: event.auth.tenantId, actorId: event.auth.sub,
-    ...(input.details ? { details: input.details } : {}),
+    ...(details ? { details } : {}),
   }), 201);
 });

@@ -20,7 +20,7 @@ function route(permission: Permission, handler: (event: AuthenticatedEvent) => P
 
 function body(event: AuthenticatedEvent): unknown {
   if (!event.body) throw new ResourceError(400, "Request body is required");
-  return JSON.parse(event.body);
+  return JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body);
 }
 
 /** This persists a simulated call only; it does not contact Amazon Connect or a customer. */

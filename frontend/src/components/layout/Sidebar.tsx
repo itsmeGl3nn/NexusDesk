@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Headphones,
   Mail,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
@@ -17,6 +18,7 @@ const navItems = [
   { to: '/tickets', icon: Ticket, label: 'Tickets' },
   { to: '/contact', icon: Mail, label: 'Contact Support' },
   { to: '/calls', icon: Phone, label: 'Calls' },
+  { to: '/audit', icon: ClipboardList, label: 'Audit logs' },
   { to: '/customers', icon: Users, label: 'Customers' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ];
@@ -36,7 +38,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-2 md:px-3 py-4 space-y-1">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {navItems.filter(({ to }) => to !== '/audit' || user?.role === 'admin' || user?.role === 'supervisor').map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to} aria-label={label} title={label}
             to={to}

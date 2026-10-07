@@ -11,6 +11,13 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 20
 const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'test-key', alg: 'RS256', use: 'sig' };
 let tenantId = 'trusted-tenant';
 let getUserCalls = 0;
+let revoked = false;
+const profile = { PK: 'TENANT#trusted-tenant', SK: 'USER#cognito-sub', tenantId: 'trusted-tenant', userId: 'cognito-sub', cognitoSub: 'cognito-sub', email: 'admin@example.test', role: 'admin', status: 'active' };
+const records = new Map([
+  ['COGNITO#cognito-sub/IDENTITY', { tenantId: profile.tenantId, userId: profile.userId }],
+  [`${profile.PK}/${profile.SK}`, profile],
+]);
+globalThis.__authDb = { send: async ({ input }) => ({ Item: records.get(`${input.Key.PK}/${input.Key.SK}`) }) };
 const server = createServer(async (request, response) => {
   response.setHeader('Content-Type', 'application/json');
   if (request.url.endsWith('/.well-known/jwks.json')) {
@@ -19,7 +26,13 @@ const server = createServer(async (request, response) => {
   }
   assert.equal(request.headers['x-amz-target'], 'AWSCognitoIdentityProviderService.GetUser');
   getUserCalls++;
+  if (revoked) {
+    response.statusCode = 400;
+    response.end(JSON.stringify({ __type: 'NotAuthorizedException', message: 'Access token revoked' }));
+    return;
+  }
   response.end(JSON.stringify({ UserAttributes: [
+    { Name: 'sub', Value: 'cognito-sub' },
     { Name: 'email', Value: 'admin@example.test' },
     ...(tenantId ? [{ Name: 'custom:tenantId', Value: tenantId }] : []),
   ] }));
@@ -37,7 +50,11 @@ Object.assign(process.env, {
 const directory = await mkdtemp(join(tmpdir(), 'nexusdesk-backend-auth-'));
 try {
   const outfile = join(directory, 'auth.cjs');
-  await build({ entryPoints: ['src/core/auth/authorize.ts'], outfile, bundle: true, platform: 'node', format: 'cjs' });
+  await build({ entryPoints: ['src/core/auth/authorize.ts'], outfile, bundle: true, platform: 'node', format: 'cjs',
+    plugins: [{ name: 'profile-db', setup(builder) {
+      builder.onLoad({ filter: /services[\\/]dynamodb\.ts$/ }, () => ({ contents: 'export const docClient = globalThis.__authDb;', loader: 'js' }));
+    } }],
+  });
   const { authorize } = createRequire(import.meta.url)(outfile);
   const handler = authorize(async ({ auth }) => ({ statusCode: 200, body: JSON.stringify(auth) }));
   const payload = {
@@ -71,9 +88,21 @@ try {
   assert.equal(getUserCalls, callsBeforeInvalidTokens, 'Reject invalid JWTs before requesting user attributes');
   assert.equal((await invoke()).statusCode, 401);
   tenantId = '';
+  assert.equal((await invoke(jwt(payload))).statusCode, 200, 'Stored binding remains authoritative without a tenant claim');
+  profile.role = 'agent';
+  const adminHandler = authorize(async () => ({ statusCode: 200, body: '{}' }), 'user:manage');
+  assert.equal((await adminHandler({ headers: { Authorization: `Bearer ${jwt(payload)}` } })).statusCode, 403, 'Stored role overrides stale admin JWT group');
+  profile.status = 'inactive';
   assert.equal((await invoke(jwt(payload))).statusCode, 403);
-  console.log('PASS: signed access token, trusted tenant lookup, forged/expired/wrong-pool/wrong-client/ID token rejection, missing tenant');
+  profile.status = 'active';
+  revoked = true;
+  assert.equal((await invoke(jwt(payload))).statusCode, 401, 'Revoked access token must fail despite a valid signature');
+  revoked = false;
+  records.clear();
+  assert.equal((await invoke(jwt(payload))).statusCode, 403);
+  console.log('PASS: JWT signature/expiry/issuer/client, stored tenant and role authority, inactive accounts, revoked tokens, missing profile');
 } finally {
   await new Promise((resolve) => server.close(resolve));
   await rm(directory, { recursive: true, force: true });
+  delete globalThis.__authDb;
 }

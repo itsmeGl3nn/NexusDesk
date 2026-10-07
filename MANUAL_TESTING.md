@@ -1,6 +1,6 @@
 # Start NexusDesk and test it manually
 
-Use PowerShell on Windows. Run commands from `D:\NexusDesk` unless a different folder is shown.
+Use PowerShell on Windows. Run commands from your NexusDesk checkout unless a different folder is shown. Examples use `D:\NexusDesk`; for this worktree use `C:\Users\joyce\.codex\worktrees\3a33\NexusDesk` instead.
 
 The local AWS services run in **Floci**. The backend runs as Lambda functions inside Floci, reached through API Gateway. Deploying the backend prepares those functions; requests invoke them automatically. The frontend runs in a separate Vite terminal.
 
@@ -157,7 +157,20 @@ Expired sessions require signing in again. Google sign-in and self-service passw
 8. Change **In progress** to **Resolved**. A resolution is required. Enter one and save; then **Closed** becomes available as the next status.
 9. Open **Dashboard** and confirm the ticket totals reflect its current status.
 
-Manual test tickets remain in your local database. There is no ticket-delete endpoint in the current application.
+Manual test tickets remain in your local database. Supervisors and admins can delete a test ticket with `DELETE /api/ticket/{id}` using its access token; deletion is audited.
+
+### Ticket filters, calls, notes, and audit logs
+
+1. In **Tickets**, select Open or In Progress. These filters run on the backend. **Assigned to me** adds the current user filter. Use **Load more tickets** when available, including when a filtered page is empty.
+2. Select a ticket. Add a note in **Ticket notes**, edit it, refresh the page and select the ticket again, then delete the note. Confirm that each change persists. Notes are limited to 5,000 characters.
+3. Select **Call customer**. This creates a simulated call only; no telephone call is placed. Check the active timer, then select **End call**.
+4. Open **Calls**. The saved call should show ended status and duration. Refresh to verify persistence. Calls started earlier can also be ended here.
+5. As admin or supervisor, open **Audit logs**. Check `ticket.created`, `ticket.updated`, `note.created`, `note.updated`, `note.deleted`, `call.started`, and `call.ended`. Audit rows cannot be edited or deleted.
+6. Create an agent with authenticated admin `POST /api/users`, including `email`, `password`, `firstName`, `lastName`, and `role: "agent"`. Sign in as that agent. Audit navigation should be hidden; `/audit` should redirect to the dashboard, and direct `GET /api/logs` should return HTTP 403. Admin user changes should also be denied.
+7. Create a note/call as one agent. Another agent should be unable to edit/delete that note or end that call (HTTP 403). Supervisors/admins can manage them. Records from another tenant must remain inaccessible.
+8. Logout, then retry an authenticated request with the old access token. The backend should reject it with HTTP 401. Logout revokes all Cognito sessions for that user; sign in again to continue.
+
+The dashboard ticket counts describe loaded pages; **Load more tickets** expands them. Team metrics and active-call dashboard metrics remain labeled demo content.
 
 ### Loading, errors, and recovery
 
@@ -169,7 +182,7 @@ To exercise an API connection error without signing out:
 4. Run `docker compose up -d floci` and wait for it to become ready.
 5. Select **Retry**. Tickets should load again. If your token expired while testing, sign in again.
 
-Calls, Customers, and Analytics currently open dashboard placeholders. Call controls and call/team metrics are marked as demo content; they are not part of the working ticket flow.
+Customers and Analytics currently open dashboard placeholders. Calls and ticket notes use the backend. If logout cannot reach the API, it shows an error; restart Floci and retry to revoke the server session.
 
 ## 8. Everyday startup: short version
 
@@ -199,6 +212,7 @@ The standard shutdown preserves the Docker data volumes. Adding `-v` deletes the
 | Problem | What to do |
 |---|---|
 | Docker engine unavailable | Open Docker Desktop and wait for Linux containers to be ready. Check `docker info`. |
+| Docker exits with a `dockerInference` socket error | Docker Desktop must recover before Floci can run. Inspect Docker Desktop diagnostics; do not delete data volumes. This machine currently hits this startup error, so the latest Phases 3–6 deployment and live checks are pending. |
 | Stack not found | Run `.\deploy.ps1 -Local`, then start the frontend again. |
 | `Missing Authentication Token` | Check the route, HTTP method, and proxy target. Use `/login` in the browser; `/api/auth/login` is a POST API endpoint. Restart the frontend after deployment. |
 | API points to old port 3001 | Use `.\start-ui.ps1`; it overrides stale frontend environment settings and resolves the current Floci endpoint. |

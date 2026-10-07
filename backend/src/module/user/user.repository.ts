@@ -2,7 +2,7 @@ import { GetCommand, QueryCommand, TransactWriteCommand, type TransactWriteComma
 import { docClient } from "../../services/dynamodb";
 import { config } from "../../utils/config";
 import { auditPut } from "../log/log.service";
-import type { User } from "./user.types";
+import type { User, UpdateUserInput } from "./user.types";
 
 type WriteItem = NonNullable<TransactWriteCommandInput["TransactItems"]>[number];
 interface Identity { tenantId: string; userId: string }
@@ -93,7 +93,7 @@ export async function listUsers(tenantId: string): Promise<User[]> {
   return users;
 }
 
-export async function updateUser(tenantId: string, userId: string, fields: Partial<Pick<User, "firstName" | "lastName" | "role" | "status">>, actorId: string): Promise<User> {
+export async function updateUser(tenantId: string, userId: string, fields: UpdateUserInput, actorId: string): Promise<User> {
   const expressions: string[] = [];
   const names: Record<string, string> = {};
   const values: Record<string, unknown> = {};

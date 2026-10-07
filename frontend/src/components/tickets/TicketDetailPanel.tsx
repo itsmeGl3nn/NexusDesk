@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTicketStore } from '../../store/ticketStore';
 import StatusBadge from './StatusBadge';
+import TicketNotes from './TicketNotes';
 import type { Ticket, TicketStatus, UpdateTicketInput } from '../../types/ticket';
 
 const statusLabels: Record<TicketStatus, string> = {
@@ -23,7 +24,7 @@ export default function TicketDetailPanel() {
     );
   }
 
-  return <TicketEditor key={ticket.ticketId} ticket={ticket} />;
+  return <div key={ticket.ticketId}><TicketEditor ticket={ticket} /><TicketNotes ticketId={ticket.ticketId} /></div>;
 }
 
 function TicketEditor({ ticket }: { ticket: Ticket }) {

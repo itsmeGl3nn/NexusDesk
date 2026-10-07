@@ -6,7 +6,9 @@ Local development uses **Floci** to run the AWS services on port **4566**.
 
 The frontend foundation includes login, a dashboard, ticket list and detail
 views, an authenticated contact form, shared navigation, and loading and error
-states. Call operations, advanced analytics, notifications, and AI workflows
+states. Phases 3–6 include validated ticket CRUD with pagination and assignment
+filters, stored-profile RBAC, simulated calls, ticket notes, and transactional
+audit logs. Real telephony, advanced analytics, notifications, and AI workflows
 remain later delivery work; some dashboard metrics are labeled as demo values.
 
 See [FLOCI.md](FLOCI.md) for detailed Windows setup and troubleshooting.
@@ -92,11 +94,13 @@ existing login. The browser page is `/login`; `/api/auth/login` accepts a
 | `/dashboard` | Ticket dashboard within the shared header/sidebar layout |
 | `/contact` | Authenticated contact form that creates a ticket |
 | `/tickets` | Ticket table, filters, selection, and editable detail panel |
+| `/calls` | Saved simulated calls and end-call controls |
+| `/audit` | Tenant audit logs for admins and supervisors |
 
-The contact form sends `POST /tickets` through the API service with the signed-in
+The contact form sends `POST /ticket` through the API service with the signed-in
 user's access token. The backend assigns the tenant from the authenticated
 identity. Public customer intake is future work. The ticket detail panel uses
-`PATCH /tickets/{ticketId}` to save descriptions and valid status transitions;
+`PUT /ticket/{id}` to save descriptions and valid status transitions;
 resolving a ticket requires a resolution.
 
 Axios uses `VITE_API_URL`, normally `/api` for local development. Vite reads
@@ -107,7 +111,9 @@ environment variables. Browser-visible `VITE_*` values must not contain secrets.
 Login stores Cognito tokens in session storage, or local storage when
 **Remember me** is selected. The app restores valid sessions, removes malformed
 or expired records, and checks expiry on focus and with an expiry timer. Logout
-clears the session and ticket cache and returns to the login page. Responses
+calls `POST /auth/logout` to revoke Cognito sessions, then clears the session
+and ticket cache and returns to the login page. If the API is unavailable,
+logout shows an error so revocation can be retried. Responses
 from an earlier session cannot repopulate its ticket data or cancel a newer
 login. JWT decoding restores UI state; the backend verifies signatures and
 permissions on protected requests.
@@ -155,7 +161,9 @@ Tenant-owned records use a `TENANT#<tenantId>` partition key and entity sort
 keys such as `USER#<userId>` and `TICKET#<ticketId>`. Tickets carry customer
 name/email, subject, description, status, timestamps, and an optional resolution.
 Users carry email, first/last name, role, and status. Cognito manages passwords.
-The Calls and Logs tables are infrastructure for later workflows.
+The Calls table stores simulated call lifecycles; Logs stores ticket notes and
+immutable audit records. Ticket, call, note, tenant, and user writes include
+their audit records in the same DynamoDB transaction.
 
 ## REST API
 
@@ -168,23 +176,41 @@ them with `http://localhost:5173/api`. Authentication uses
 | GET | `/ping` | Public health check |
 | POST | `/tenants/register` | Public tenant and initial administrator registration |
 | POST | `/auth/login` | Public email/password login; returns Cognito tokens |
-| POST | `/auth/signup` | Public account signup for a tenant |
+| POST | `/auth/signup` | Alias for creating a new tenant and its administrator |
+| POST | `/auth/register` | Alias for creating a new tenant and its administrator |
+| POST | `/auth/logout` | Authenticated Cognito global sign-out |
 | POST | `/auth/confirm` | Public signup confirmation |
 | POST | `/auth/refresh` | Public refresh-token exchange |
 | GET | `/me` | Authenticated caller's profile |
 | POST | `/users` | Admin creates a user |
 | GET | `/users` | Supervisor/admin lists tenant users |
-| GET | `/users/{userId}` | Authenticated tenant user lookup |
+| GET | `/users/{userId}` | Supervisor/admin tenant user lookup |
 | PATCH | `/users/{userId}` | Admin updates a tenant user |
 | POST | `/tickets` | Authenticated ticket creation |
 | GET | `/tickets` | Authenticated tenant ticket list |
 | GET | `/tickets/{ticketId}` | Authenticated ticket detail |
 | PATCH | `/tickets/{ticketId}` | Authenticated ticket update |
+| POST | `/ticket` | Alias for ticket creation |
+| GET | `/ticket/{id}` | Alias for ticket detail |
+| PUT | `/ticket/{id}` | Alias for ticket update |
+| DELETE | `/ticket/{id}` | Supervisor/admin ticket deletion |
+| POST | `/call` | Start and persist a simulated call for a ticket |
+| GET | `/calls` | Tenant call list with pagination and optional ticket filter |
+| PUT | `/call/{id}` | End own call; supervisors/admins can end tenant calls |
+| POST / GET | `/notes` | Create/list ticket notes with pagination |
+| PUT / DELETE | `/notes/{id}` | Owner or supervisor/admin edits/deletes a note |
+| GET | `/logs` | Supervisor/admin tenant audit list with pagination |
+| POST | `/logs` | Supervisor/admin manually records a labeled audit event |
 
 Create-ticket bodies contain `customerName`, `customerEmail`, `subject`, and
 `description`. Status updates follow the backend's allowed transitions; a
-`resolved` update requires a `resolution`. Calls, WebSockets, ticket deletion,
-and public contact submission are not routes in the current SAM template.
+`resolved` update requires a `resolution`. Ticket lists accept `status`,
+`assignedTo`, `limit` (1–100), and `nextToken`, and return `{ items, nextToken }`.
+Filtered DynamoDB pages may be empty while still returning a continuation token.
+Agents can assign tickets to themselves; supervisors/admins can assign active
+tenant users. Public signup cannot choose an existing tenant or privileged role;
+admins provision existing-tenant users with `POST /users` (including password).
+WebSockets and public contact submission remain future work.
 
 ## AI direction
 
@@ -207,7 +233,7 @@ subject, description, resolution, tenant, customer email, and timestamp to
 rolling back the saved ticket update.
 
 Later delivery work includes automatic triage and assignment, suggested
-responses in the UI, call integration with Amazon Connect, audit timelines,
+responses in the UI, call integration with Amazon Connect,
 real-time notifications, analytics, public intake, and production deployment.
 
 ## Project layout
@@ -215,7 +241,7 @@ real-time notifications, analytics, public intake, and production deployment.
 ```text
 frontend/                 React app, pages, shared layout, API service, stores
 backend/src/core/auth/    Cognito, JWT verification, roles, tenant resolution
-backend/src/module/       Auth, tenant, user, ticket, and ping modules
+backend/src/module/       Auth, tenant, user, ticket, call, log, and ping modules
 infrastructure/           SAM template
 docker/                   Local resource setup and verification scripts
 ai-service/               Optional FastAPI agents and RAG services

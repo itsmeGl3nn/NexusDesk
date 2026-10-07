@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { User } from '../types/user';
-import { loginApi } from '../services/authService';
+import { loginApi, logoutApi } from '../services/authService';
 import { clearSession, readSession, saveSession } from '../services/session';
 import { useTicketStore } from './ticketStore';
 
@@ -12,6 +12,7 @@ interface AuthState {
   error: string | null;
   login: (email: string, password: string, remember?: boolean) => Promise<void>;
   logout: () => void;
+  signOut: () => Promise<void>;
   syncSession: () => void;
 }
 
@@ -41,6 +42,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       throw err;
     }
+  },
+
+  signOut: async () => {
+    const token = activeToken;
+    if (token) await logoutApi(token);
+    if (activeToken === token) get().logout();
   },
 
   logout: () => {

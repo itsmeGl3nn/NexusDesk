@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "node build.js",
-    "test": "node scripts/auth.test.mjs",
+    "test": "node scripts/auth.test.mjs && node scripts/ticket.test.mjs && node scripts/phase6.test.mjs",
     "typecheck": "tsc --noEmit",
     "start": "ts-node src/handlers/ping.ts"
   },

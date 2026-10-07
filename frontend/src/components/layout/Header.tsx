@@ -1,11 +1,18 @@
 import { Search, Bell, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
 
 export default function Header() {
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-  const navigate = useNavigate();
+  const signOut = useAuthStore((s) => s.signOut);
+  const [signingOut, setSigningOut] = useState(false);
+  const [error, setError] = useState('');
+  const handleLogout = async () => {
+    setSigningOut(true); setError('');
+    try { await signOut(); }
+    catch (err) { setError(err instanceof Error ? err.message : 'Could not sign out. Try again.'); }
+    finally { setSigningOut(false); }
+  };
 
   return (
     <header className="flex items-center justify-between min-h-16 gap-2 px-3 sm:px-6 bg-white border-b border-gray-200">
@@ -21,6 +28,7 @@ export default function Header() {
 
       {/* Right actions */}
       <div className="flex shrink-0 items-center gap-2 sm:gap-4 ml-auto">
+        {error && <p role="alert" className="max-w-48 text-xs text-red-700">{error}</p>}
         {/* Notifications */}
         <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
           <Bell className="w-5 h-5" />
@@ -43,12 +51,13 @@ export default function Header() {
 
         {/* Logout */}
         <button
-          onClick={() => { logout(); navigate('/login', { replace: true }); }}
+          disabled={signingOut}
+          onClick={() => void handleLogout()}
           className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
         >
           <span className="flex items-center gap-1.5">
             <LogOut className="w-4 h-4" />
-            Logout
+            {signingOut ? 'Signing out…' : 'Logout'}
           </span>
         </button>
       </div>

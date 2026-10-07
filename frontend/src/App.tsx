@@ -6,16 +6,13 @@ import DashboardPage from './pages/DashboardPage'
 import TicketsPage from './pages/TicketsPage'
 import ContactPage from './pages/ContactPage'
 import DashboardLayout from './components/layout/DashboardLayout'
+import ProtectedRoute from './components/ProtectedRoute'
+import CallsPage from './pages/CallsPage'
+import AuditPage from './pages/AuditPage'
 import { useAuthStore } from './store/authStore'
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
-}
-
 function App() {
-  const { isAuthenticated, expiresAt, logout, syncSession } = useAuthStore();
+  const { isAuthenticated, user, expiresAt, logout, syncSession } = useAuthStore();
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key === SESSION_KEY || event.key === null) syncSession();
@@ -34,11 +31,12 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-      <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
+      <Route element={<ProtectedRoute><DashboardLayout key={user?.id} /></ProtectedRoute>}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/contact" element={<ContactPage />} />
-        <Route path="/calls" element={<DashboardPage />} />
+        <Route path="/calls" element={<CallsPage />} />
+        <Route path="/audit" element={<ProtectedRoute roles={['admin', 'supervisor']}><AuditPage /></ProtectedRoute>} />
         <Route path="/customers" element={<DashboardPage />} />
         <Route path="/analytics" element={<DashboardPage />} />
       </Route>

@@ -38,6 +38,7 @@ export default function DashboardPage() {
       {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         {error} <button className="underline" disabled={isLoading} onClick={() => void fetchTickets()}>Retry</button>
       </div>}
+      {nextToken && <p className="text-sm text-gray-600">Counts reflect loaded tickets. <button disabled={isLoading} onClick={() => void loadMore()} className="underline">Load more tickets</button></p>}
 
       {/* Stats grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
